@@ -3,109 +3,657 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bill Reminder</title>
+    <title>Bill Reminder - Dashboard</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --primary-dark: #3a56d4;
+            --secondary-color: #48bfe3;
+            --light-color: #f8f9fa;
+            --dark-color: #1a1a2e;
+            --success-color: #06d6a0;
+            --warning-color: #ffd166;
+            --danger-color: #ef476f;
+            --card-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            --sidebar-width: 240px;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f4f7fc;
+            transition: all 0.3s;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: var(--sidebar-width);
+            background: var(--dark-color);
+            color: white;
+            padding-top: 20px;
+            z-index: 100;
+            transition: all 0.3s;
+            box-shadow: 3px 0px 10px rgba(0,0,0,0.1);
+        }
+
+        .sidebar .logo-container {
+            padding: 15px 25px;
+            margin-bottom: 25px;
+        }
+
+        .sidebar .logo-container h4 {
+            margin: 0;
+            font-weight: 600;
+            font-size: 1.4rem;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.7);
+            padding: 12px 25px;
+            margin: 3px 0;
+            border-radius: 0 30px 30px 0;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            color: white;
+            background-color: rgba(255,255,255,0.1);
+        }
+
+        .sidebar .nav-link.active {
+            background-color: var(--primary-color);
+        }
+
+        .sidebar .nav-link i {
+            margin-right: 15px;
+            width: 24px;
+            text-align: center;
+        }
+
+        /* Main Content Styles */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 30px;
+            transition: all 0.3s;
+            min-height: 100vh;
+        }
+
+        .page-title {
+            margin-bottom: 30px;
+            color: var(--dark-color);
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            padding-bottom: 15px;
+        }
+
+        .page-title h2 {
+            font-weight: 600;
+            margin-bottom: 0;
+        }
+
+        /* Card Styles */
+        .custom-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: var(--card-shadow);
+            padding: 20px;
+            margin-bottom: 25px;
+            transition: all 0.3s;
+            border: none;
+        }
+
+        .custom-card:hover {
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            transform: translateY(-3px);
+        }
+
+        .custom-card .card-header {
+            background: transparent;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            padding: 15px 20px;
+            margin: -20px -20px 20px;
+            border-top-left-radius: 15px;
+            border-top-right-radius: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .custom-card .card-header h5 {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .card-header .header-icon {
+            margin-right: 15px;
+            color: var(--primary-color);
+            font-size: 1.2rem;
+        }
+
+        /* Dashboard Widgets */
+        .stats-widget {
+            border-radius: 15px;
+            padding: 20px;
+            color: white;
+            box-shadow: var(--card-shadow);
+            height: 100%;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .stats-widget:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .stats-widget.primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        }
+
+        .stats-widget.success {
+            background: linear-gradient(135deg, var(--success-color), #03a87c);
+        }
+
+        .stats-widget.warning {
+            background: linear-gradient(135deg, var(--warning-color), #f4a83a);
+        }
+
+        .stats-widget.danger {
+            background: linear-gradient(135deg, var(--danger-color), #d64161);
+        }
+
+        .stats-widget .widget-icon {
+            font-size: 2.5rem;
+            margin-right: 15px;
+            opacity: 0.8;
+        }
+
+        .stats-widget .widget-content {
+            flex: 1;
+        }
+
+        .stats-widget .widget-title {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .stats-widget .widget-value {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 0;
+        }
+
+        /* Bill List Styles */
+        .bill-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .bill-item {
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s;
+            padding-left: 15px;
+            padding-right: 15px;
+        }
+
+        .bill-item:last-child {
+            border-bottom: none;
+        }
+
+        .bill-item:hover {
+            background-color: rgba(0,0,0,0.01);
+        }
+
+        .bill-item .bill-info {
+            flex: 1;
+        }
+
+        .bill-item .bill-name {
+            margin: 0;
+            font-weight: 500;
+            color: var(--dark-color);
+        }
+
+        .bill-item .bill-due {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .bill-item .bill-amount {
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+            margin: 0 15px;
+        }
+
+        /* Theme Switch Button */
+        .theme-switch {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--dark-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+
+        .theme-switch:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+
+        /* Dark Mode Styles */
+        .dark-mode {
+            background-color: #121212;
+            color: #f5f5f5;
+        }
+
+        .dark-mode .custom-card {
+            background-color: #1e1e1e;
+            color: #f5f5f5;
+            border-color: #333;
+        }
+
+        .dark-mode .bill-item .bill-name,
+        .dark-mode .page-title {
+            color: #f5f5f5;
+        }
+
+        .dark-mode .custom-card .card-header,
+        .dark-mode .page-title {
+            border-bottom-color: #333;
+        }
+
+        .dark-mode .bill-item {
+            border-color: #333;
+        }
+
+        .dark-mode .bill-item:hover {
+            background-color: rgba(255,255,255,0.05);
+        }
+
+        .dark-mode .text-muted,
+        .dark-mode .bill-due {
+            color: #aaa !important;
+        }
+
+        .dark-mode .theme-switch {
+            background-color: var(--light-color);
+            color: var(--dark-color);
+        }
+
+        /* Media Queries for Responsive Design */
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 70px;
+                overflow: hidden;
+            }
+            
+            .sidebar .logo-container h4,
+            .sidebar .nav-link span {
+                display: none;
+            }
+            
+            .sidebar .nav-link {
+                padding: 15px 0;
+                justify-content: center;
+            }
+            
+            .sidebar .nav-link i {
+                margin-right: 0;
+                font-size: 1.2rem;
+            }
+            
+            .main-content {
+                margin-left: 70px;
+            }
+            
+            .stats-widget .widget-value {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 20px;
+            }
+            
+            .stats-widget {
+                margin-bottom: 20px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .sidebar {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                top: auto;
+                width: 100%;
+                height: 60px;
+                display: flex;
+                flex-direction: row;
+                padding: 0;
+                z-index: 1000;
+            }
+            
+            .sidebar .logo-container {
+                display: none;
+            }
+            
+            .sidebar .nav {
+                display: flex;
+                flex-direction: row;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            
+            .sidebar .nav-item {
+                flex: 1;
+            }
+            
+            .sidebar .nav-link {
+                padding: 10px 0;
+                text-align: center;
+                border-radius: 0;
+                height: 60px;
+                justify-content: center;
+                align-items: center;
+                flex-direction: column;
+            }
+            
+            .sidebar .nav-link i {
+                margin: 0 0 5px 0;
+                font-size: 1.1rem;
+            }
+            
+            .sidebar .nav-link span {
+                display: block;
+                font-size: 0.7rem;
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding-bottom: 80px;
+            }
+            
+            .page-title h2 {
+                font-size: 1.5rem;
+            }
+            
+            .custom-card .card-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .bill-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .bill-item .bill-amount {
+                margin: 10px 0;
+            }
+        }
+
+        /* Animation for stats widgets */
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .stats-widget:hover .widget-icon {
+            animation: pulse 1s infinite;
+        }
+    </style>
 </head>
 <body>
-    <div class="d-flex">
-        <nav class="sidebar col-md-2 d-none d-md-block bg-light">
-            <h4 class="text-white text-center">Bill Reminder</h4>
-            <ul class="nav flex-column">
-                <li class="nav-item">
-                    <a class="nav-link active" href="#" id="dashboardLink">Dashboard</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" id="addBillLink">Add Bill</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" id="billHistoryLink">Bill History</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" id="aiQueryLink">AI Query</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" id="remindersLink">Reminders</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" id="insightsLink">Insights</a>
-                </li>
-            </ul>
-        </nav>
+    <!-- Theme Switch Button -->
+    <div class="theme-switch" id="themeSwitch">
+        <i class="fas fa-moon"></i>
+    </div>
 
-        <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
-            <h1 class="mt-5">Dashboard</h1>
-            <div id="dashboard" class="mt-4">
-                <h2>Total Bill Summary</h2>
-                <div id="totalBillSummary" class="alert alert-info">Total Outstanding Bills: $0.00</div>
-                <h2>Upcoming Due Dates</h2>
-                <ul id="upcomingDueDates" class="list-group"></ul>
-            </div>
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar">
+        <div class="logo-container">
+            <h4><i class="fas fa-receipt mr-2"></i> BillTracker</h4>
+        </div>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a href="index.html" class="nav-link active">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="add-bill.html" class="nav-link">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>Add Bill</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="bill-history.html" class="nav-link">
+                    <i class="fas fa-history"></i>
+                    <span>Bill History</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="ai-chat.html" class="nav-link">
+                    <i class="fas fa-robot"></i>
+                    <span>AI Assistant</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="reminders.html" class="nav-link">
+                    <i class="fas fa-bell"></i>
+                    <span>Reminders</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="insights.html" class="nav-link">
+                    <i class="fas fa-lightbulb"></i>
+                    <span>Insights</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
 
-            <div id="addBill" class="mt-4" style="display: none;">
-                <h2>Add a New Bill</h2>
-                <form id="billForm">
-                    <div class="form-group">
-                        <label for="billName">Bill Name</label>
-                        <input type="text" class="form-control" id="billName" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="amount">Amount</label>
-                        <input type="number" class="form-control" id="amount" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="dueDate">Due Date</label>
-                        <input type="date" class="form-control" id="dueDate" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Add Bill</button>
-                </form>
-            </div>
-
-            <div id="billHistory" class="mt-4" style="display: none;">
-                <h2>Bill History</h2>
-                <ul id="billsList" class="list-group"></ul>
-            </div>
-
-            <div id="aiQuery" class="mt-4" style="display: none;">
-                <h2>Bill Assistant</h2>
-                <div class="row">
-                    <div class="col-md-10 mx-auto">
-                        <div class="chat-container">
-                            <div class="chat-header">
-                                <i class="fas fa-robot mr-2"></i> Bill Assistant
-                            </div>
-                            <div class="chat-messages" id="chatMessages">
-                                <div class="message bot-message">
-                                    <div class="bot-welcome">Hello! I'm your Bill Assistant. Ask me anything about your bills, payment schedules, or cost-saving suggestions.</div>
-                                </div>
-                            </div>
-                            <div class="typing-indicator" id="typingIndicator">
-                                <span>.</span><span>.</span><span>.</span>
-                            </div>
-                            <div class="chat-input">
-                                <input type="text" id="aiInput" placeholder="Ask about your bills..." class="form-control">
-                                <button id="aiSubmit" class="btn btn-primary">
-                                    <i class="fas fa-paper-plane"></i>
-                                </button>
-                            </div>
-                        </div>
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <div class="page-title">
+            <h2>Dashboard</h2>
+            <p class="text-muted">Overview of your bills and finances</p>
+        </div>
+        
+        <div class="row">
+            <!-- Stats Widgets -->
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-widget primary">
+                    <i class="fas fa-file-invoice-dollar widget-icon"></i>
+                    <div class="widget-content">
+                        <div class="widget-title">Total Bills</div>
+                        <div class="widget-value" id="totalBillAmount">$1,532.47</div>
                     </div>
                 </div>
             </div>
-
-            <div id="reminders" class="mt-4" style="display: none;">
-                <h2>Reminders</h2>
-                <ul id="remindersList" class="list-group"></ul>
+            
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-widget danger">
+                    <i class="fas fa-exclamation-circle widget-icon"></i>
+                    <div class="widget-content">
+                        <div class="widget-title">Overdue</div>
+                        <div class="widget-value">4 Bills</div>
+                    </div>
+                </div>
             </div>
-
-            <div id="insights" class="mt-4" style="display: none;">
-                <h2>Insights</h2>
-                <div id="insightsData" class="alert alert-info"></div>
+            
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-widget warning">
+                    <i class="fas fa-clock widget-icon"></i>
+                    <div class="widget-content">
+                        <div class="widget-title">Upcoming</div>
+                        <div class="widget-value">3 Bills</div>
+                    </div>
+                </div>
             </div>
-        </main>
-    </div>
+            
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-widget success">
+                    <i class="fas fa-check-circle widget-icon"></i>
+                    <div class="widget-content">
+                        <div class="widget-title">Paid this Month</div>
+                        <div class="widget-value">$250.50</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- Upcoming Bills -->
+            <div class="col-md-7 mb-4">
+                <div class="custom-card">
+                    <div class="card-header">
+                        <i class="fas fa-calendar-alt header-icon"></i>
+                        <h5>Upcoming Bills</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="bill-list" id="upcomingBillsList">
+                            <li class="bill-item">
+                                <div class="bill-info">
+                                    <h5 class="bill-name">Electricity</h5>
+                                    <div class="bill-due">Due: Mar 25, 2025 <span class="text-danger">(Due in 5 days)</span></div>
+                                </div>
+                                <div class="bill-amount">$89.99</div>
+                            </li>
+                            <li class="bill-item">
+                                <div class="bill-info">
+                                    <h5 class="bill-name">Internet</h5>
+                                    <div class="bill-due">Due: Mar 28, 2025 <span class="text-warning">(Due in 8 days)</span></div>
+                                </div>
+                                <div class="bill-amount">$65.99</div>
+                            </li>
+                            <li class="bill-item">
+                                <div class="bill-info">
+                                    <h5 class="bill-name">Rent</h5>
+                                    <div class="bill-due">Due: Apr 1, 2025 <span>(Due in 12 days)</span></div>
+                                </div>
+                                <div class="bill-amount">$1,200.00</div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Category Breakdown -->
+            <div class="col-md-5 mb-4">
+                <div class="custom-card">
+                    <div class="card-header">
+                        <i class="fas fa-chart-pie header-icon"></i>
+                        <h5>Category Breakdown</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="categoryChart" height="240"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
 
-    <script src="scripts.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Theme toggling
+            const themeSwitch = document.getElementById('themeSwitch');
+            if (themeSwitch) {
+                themeSwitch.addEventListener('click', function() {
+                    document.body.classList.toggle('dark-mode');
+                    const isDarkMode = document.body.classList.contains('dark-mode');
+                    localStorage.setItem('darkMode', isDarkMode);
+                    
+                    const icon = themeSwitch.querySelector('i');
+                    if (isDarkMode) {
+                        icon.className = 'fas fa-sun';
+                    } else {
+                        icon.className = 'fas fa-moon';
+                    }
+                });
+
+                // Restore dark mode preference
+                if (localStorage.getItem('darkMode') === 'true') {
+                    document.body.classList.add('dark-mode');
+                    const icon = themeSwitch.querySelector('i');
+                    if (icon) {
+                        icon.className = 'fas fa-sun';
+                    }
+                }
+            }
+
+            // Initialize chart
+            const categoryChart = document.getElementById('categoryChart');
+            if (categoryChart && typeof Chart !== 'undefined') {
+                const ctx = categoryChart.getContext('2d');
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Utilities', 'Housing', 'Insurance', 'Entertainment', 'Other'],
+                        datasets: [{
+                            data: [241.97, 1200.00, 91.99, 35.50, 65.00],
+                            backgroundColor: [
+                                'rgba(67, 97, 238, 0.7)',
+                                'rgba(239, 71, 111, 0.7)',
+                                'rgba(6, 214, 160, 0.7)',
+                                'rgba(255, 209, 102, 0.7)',
+                                'rgba(17, 138, 178, 0.7)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>

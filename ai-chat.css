@@ -1,0 +1,1831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant - Bill Reminder</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --primary-dark: #3a56d4;
+            --secondary-color: #48bfe3;
+            --light-color: #f8f9fa;
+            --dark-color: #1a1a2e;
+            --success-color: #06d6a0;
+            --warning-color: #ffd166;
+            --danger-color: #ef476f;
+            --card-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            --sidebar-width: 240px;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f4f7fc;
+            transition: all 0.3s;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: var(--sidebar-width);
+            background: var(--dark-color);
+            color: white;
+            padding-top: 20px;
+            z-index: 100;
+            transition: all 0.3s;
+            box-shadow: 3px 0px 10px rgba(0,0,0,0.1);
+        }
+
+        .sidebar .logo-container {
+            padding: 15px 25px;
+            margin-bottom: 25px;
+        }
+
+        .sidebar .logo-container h4 {
+            margin: 0;
+            font-weight: 600;
+            font-size: 1.4rem;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.7);
+            padding: 12px 25px;
+            margin: 3px 0;
+            border-radius: 0 30px 30px 0;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            color: white;
+            background-color: rgba(255,255,255,0.1);
+        }
+
+        .sidebar .nav-link.active {
+            background-color: var(--primary-color);
+        }
+
+        .sidebar .nav-link i {
+            margin-right: 15px;
+            width: 24px;
+            text-align: center;
+        }
+
+        /* Main Content Styles */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 30px;
+            transition: all 0.3s;
+            min-height: 100vh;
+        }
+
+        .page-title {
+            margin-bottom: 30px;
+            color: var(--dark-color);
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            padding-bottom: 15px;
+        }
+
+        .page-title h2 {
+            font-weight: 600;
+            margin-bottom: 0;
+        }
+
+        /* Theme Switch Button */
+        .theme-switch {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--dark-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+
+        .theme-switch:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+
+        /* Dark Mode Styles */
+        .dark-mode {
+            background-color: #121212;
+            color: #f5f5f5;
+        }
+
+        .dark-mode .custom-card,
+        .dark-mode .form-control,
+        .dark-mode .bot-message,
+        .dark-mode .chat-input input {
+            background-color: #1e1e1e;
+            color: #f5f5f5;
+            border-color: #333;
+        }
+
+        .dark-mode .bill-item .bill-name {
+            color: #f5f5f5;
+        }
+
+        .dark-mode .page-title,
+        .dark-mode .custom-form-group label {
+            color: #f5f5f5;
+        }
+
+        .dark-mode .bill-item:hover {
+            background-color: rgba(255,255,255,0.05);
+        }
+
+        .dark-mode .chat-messages {
+            background-color: #121212;
+        }
+
+        .dark-mode .bot-response-table th {
+            background-color: #333;
+            color: #f5f5f5;
+        }
+
+        .dark-mode .bot-response-table tr:nth-child(even) {
+            background-color: #2a2a2a;
+        }
+
+        .dark-mode .theme-switch {
+            background-color: var(--light-color);
+            color: var(--dark-color);
+        }
+
+        .dark-mode .suggestion-pill {
+            background: #333;
+            color: #f5f5f5;
+        }
+
+        .dark-mode .typing-indicator {
+            background-color: #2a2a2a;
+        }
+
+        /* Toast Notification */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .toast {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            padding: 0;
+            margin-bottom: 15px;
+            min-width: 300px;
+            max-width: 400px;
+            overflow: hidden;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast-header {
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .toast-header i {
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+
+        .toast-header strong {
+            flex: 1;
+            font-weight: 600;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            line-height: 1;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .toast-body {
+            padding: 15px;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+
+        .toast-success .toast-header {
+            background-color: rgba(6, 214, 160, 0.1);
+            color: var(--success-color);
+        }
+
+        .toast-error .toast-header {
+            background-color: rgba(239, 71, 111, 0.1);
+            color: var(--danger-color);
+        }
+
+        /* Chatbot styles */
+        .chat-container {
+            border-radius: 15px;
+            box-shadow: var(--card-shadow);
+            height: 70vh;
+            display: flex;
+            flex-direction: column;
+            background-color: white;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .chat-header {
+            padding: 18px 25px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+        }
+
+        .chat-header i {
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            background-color: #f9fafc;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            max-width: 80%;
+            padding: 15px;
+            border-radius: 15px;
+            position: relative;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background-color: var(--primary-color);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .bot-message {
+            align-self: flex-start;
+            background-color: white;
+            color: var(--dark-color);
+            border-bottom-left-radius: 5px;
+        }
+
+        .message-content {
+            word-wrap: break-word;
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            margin-top: 8px;
+            text-align: right;
+        }
+
+        .typing-indicator {
+            display: none;
+            align-self: flex-start;
+            background-color: white;
+            color: #999;
+            padding: 10px 15px;
+            border-radius: 15px;
+            border-bottom-left-radius: 5px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .typing-indicator span {
+            animation: dot 1.3s infinite;
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #999;
+            margin: 0 2px;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes dot {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-5px); }
+        }
+
+        .chat-input {
+            display: flex;
+            padding: 15px 20px;
+            background-color: white;
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .chat-input input {
+            flex: 1;
+            border-radius: 30px;
+            padding: 12px 20px;
+            border: 1px solid #ddd;
+            background-color: #f5f7fb;
+        }
+
+        .chat-input button {
+            margin-left: 10px;
+            border-radius: 50%;
+            width: 46px;
+            height: 46px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 10px rgba(67, 97, 238, 0.2);
+            cursor: pointer;
+        }
+
+        .chat-input button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(67, 97, 238, 0.3);
+        }
+
+        .chat-input button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .bot-welcome {
+            font-style: normal;
+            color: var(--dark-color);
+        }
+
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 15px;
+            gap: 10px;
+            background-color: white;
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .suggestion-pill {
+            background: #f0f2f5;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 15px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .suggestion-pill:hover {
+            background: #e4e6eb;
+            transform: translateY(-2px);
+        }
+
+        .message-content pre {
+            background-color: rgba(0,0,0,0.05);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        .bot-message .message-content ul {
+            padding-left: 20px;
+        }
+
+        .bot-message .message-content p {
+            margin-bottom: 10px;
+        }
+
+        .bot-message .message-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .bot-message .message-content table th,
+        .bot-message .message-content table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .bot-message .message-content table th {
+            background-color: #f2f2f2;
+        }
+
+        /* Chat history section */
+        .chat-history-section {
+            margin-bottom: 30px;
+        }
+
+        .chat-history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .chat-history-header h5 {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .chat-history-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .chat-history-item {
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background-color: #f5f7fb;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .chat-history-item:hover {
+            background-color: #e9ecf1;
+            transform: translateX(5px);
+        }
+
+        .chat-history-item p {
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .dark-mode .chat-history-item {
+            background-color: #2a2a2a;
+        }
+
+        .dark-mode .chat-history-item:hover {
+            background-color: #333;
+        }
+
+        .clear-chat-button {
+            background: none;
+            border: none;
+            color: var(--danger-color);
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .clear-chat-button:hover {
+            text-decoration: underline;
+        }
+
+        /* Media Queries for Responsive Design */
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 70px;
+                overflow: hidden;
+            }
+            
+            .sidebar .logo-container h4,
+            .sidebar .nav-link span {
+                display: none;
+            }
+            
+            .sidebar .nav-link {
+                padding: 15px 0;
+                justify-content: center;
+            }
+            
+            .sidebar .nav-link i {
+                margin-right: 0;
+                font-size: 1.2rem;
+            }
+            
+            .main-content {
+                margin-left: 70px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 20px;
+            }
+            
+            .chat-container {
+                height: 60vh;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .sidebar {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                top: auto;
+                width: 100%;
+                height: 60px;
+                display: flex;
+                flex-direction: row;
+                padding: 0;
+                z-index: 1000;
+            }
+            
+            .sidebar .logo-container {
+                display: none;
+            }
+            
+            .sidebar .nav {
+                display: flex;
+                flex-direction: row;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            
+            .sidebar .nav-item {
+                flex: 1;
+            }
+            
+            .sidebar .nav-link {
+                padding: 10px 0;
+                text-align: center;
+                border-radius: 0;
+                height: 60px;
+                justify-content: center;
+                align-items: center;
+                flex-direction: column;
+            }
+            
+            .sidebar .nav-link i {
+                margin: 0 0 5px 0;
+                font-size: 1.1rem;
+            }
+            
+            .sidebar .nav-link span {
+                display: block;
+                font-size: 0.7rem;
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding-bottom: 80px;
+            }
+            
+            .page-title h2 {
+                font-size: 1.5rem;
+            }
+            
+            .chat-container {
+                height: 70vh;
+            }
+            
+            .suggestions {
+                padding: 10px;
+            }
+            
+            .suggestion-pill {
+                font-size: 0.8rem;
+                padding: 6px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Theme Switch Button -->
+    <div class="theme-switch" id="themeSwitch">
+        <i class="fas fa-moon"></i>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar">
+        <div class="logo-container">
+            <h4><i class="fas fa-receipt mr-2"></i> BillTracker</h4>
+        </div>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a href="index.html" class="nav-link">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="add-bill.html" class="nav-link">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>Add Bill</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="bill-history.html" class="nav-link">
+                    <i class="fas fa-history"></i>
+                    <span>Bill History</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="ai-chat.html" class="nav-link active">
+                    <i class="fas fa-robot"></i>
+                    <span>AI Assistant</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="reminders.html" class="nav-link">
+                    <i class="fas fa-bell"></i>
+                    <span>Reminders</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="insights.html" class="nav-link">
+                    <i class="fas fa-lightbulb"></i>
+                    <span>Insights</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <div class="page-title">
+            <h2><i class="fas fa-robot mr-2"></i> AI Bill Assistant</h2>
+            <p class="text-muted">Ask questions about your bills, get insights, and find ways to save money</p>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-4">
+                <!-- Chat History Section -->
+                <div class="chat-history-section">
+                    <div class="chat-history-header">
+                        <h5>Recent Conversations</h5>
+                        <button class="clear-chat-button" id="clearChatHistory">
+                            <i class="fas fa-trash-alt"></i> Clear All
+                        </button>
+                    </div>
+                    <ul class="chat-history-list" id="chatHistoryList">
+                        <!-- Will be populated dynamically -->
+                        <li class="text-center text-muted py-3">
+                            <small>No recent conversations</small>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- AI Capabilities Card -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-lightbulb mr-2"></i> Bill Assistant Can Help With</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="mb-0">
+                            <li>Track upcoming bills and due dates</li>
+                            <li>Analyze your spending patterns</li>
+                            <li>Find ways to reduce recurring costs</li>
+                            <li>Suggest free alternatives to paid services</li>
+                            <li>Calculate total monthly expenses</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-8">
+                <!-- Chat Container -->
+                <div class="chat-container">
+                    <div class="chat-header">
+                        <i class="fas fa-robot"></i> Bill Assistant
+                    </div>
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message bot-message">
+                            <div class="message-content">
+                                <strong>Hello!</strong> I'm your Bill Assistant. I can help you with:
+                                <ul>
+                                    <li>Finding upcoming bills</li>
+                                    <li>Analyzing your spending</li>
+                                    <li>Suggesting ways to save money</li>
+                                    <li>Answering questions about your bills</li>
+                                </ul>
+                                How can I help you today?
+                            </div>
+                            <div class="message-time">
+                                Just now
+                            </div>
+                        </div>
+                    </div>
+                    <div class="typing-indicator" id="typingIndicator">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <div class="suggestions">
+                        <button class="suggestion-pill" data-query="When is my next bill due?">When is my next bill due?</button>
+                        <button class="suggestion-pill" data-query="How much do I spend on subscriptions?">How much do I spend on subscriptions?</button>
+                        <button class="suggestion-pill" data-query="Where can I save money?">Where can I save money?</button>
+                        <button class="suggestion-pill" data-query="Show my bills by category">Show my bills by category</button>
+                    </div>
+                    <form id="chatForm" class="chat-input">
+                        <input type="text" id="messageInput" placeholder="Ask about your bills..." class="form-control">
+                        <button type="submit" id="sendButton">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Theme toggling
+            const themeSwitch = document.getElementById('themeSwitch');
+            if (themeSwitch) {
+                themeSwitch.addEventListener('click', function() {
+                    document.body.classList.toggle('dark-mode');
+                    const isDarkMode = document.body.classList.contains('dark-mode');
+                    localStorage.setItem('darkMode', isDarkMode);
+                    
+                    const icon = themeSwitch.querySelector('i');
+                    if (isDarkMode) {
+                        icon.className = 'fas fa-sun';
+                    } else {
+                        icon.className = 'fas fa-moon';
+                    }
+                });
+
+                // Restore dark mode preference
+                if (localStorage.getItem('darkMode') === 'true') {
+                    document.body.classList.add('dark-mode');
+                    const icon = themeSwitch.querySelector('i');
+                    if (icon) {
+                        icon.className = 'fas fa-sun';
+                    }
+                }
+            }
+
+            // Chat functionality
+            const chatForm = document.getElementById('chatForm');
+            const messageInput = document.getElementById('messageInput');
+            const sendButton = document.getElementById('sendButton');
+            const chatMessages = document.getElementById('chatMessages');
+            const typingIndicator = document.getElementById('typingIndicator');
+            const suggestionPills = document.querySelectorAll('.suggestion-pill');
+            const chatHistoryList = document.getElementById('chatHistoryList');
+            const clearChatHistoryBtn = document.getElementById('clearChatHistory');
+            
+            // Initialize chat history from localStorage
+            let chatHistory = JSON.parse(localStorage.getItem('chatHistory')) || [];
+            updateChatHistoryUI();
+            
+            // Handle suggestion pills
+            suggestionPills.forEach(pill => {
+                pill.addEventListener('click', function() {
+                    const query = this.getAttribute('data-query');
+                    messageInput.value = query;
+                    sendMessage();
+                });
+            });
+            
+            // Handle send button click and enter key
+            chatForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                sendMessage();
+            });
+            
+            // Clear chat history
+            clearChatHistoryBtn.addEventListener('click', function() {
+                if (confirm('Are you sure you want to clear all chat history?')) {
+                    chatHistory = [];
+                    localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+                    updateChatHistoryUI();
+                    showToast('Success', 'Chat history cleared');
+                }
+            });
+            
+            function sendMessage() {
+                const message = messageInput.value.trim();
+                if (!message) return;
+                
+                // Disable send button during processing
+                sendButton.disabled = true;
+                
+                // Add user message to chat
+                addMessage('user', message);
+                
+                // Clear input
+                messageInput.value = '';
+                
+                // Store in chat history
+                saveToHistory(message);
+                
+                // Show typing indicator
+                typingIndicator.style.display = 'flex';
+                
+                // In a real implementation, this would call the Gemini API
+                // For this demo, we'll simulate a server call with setTimeout
+                setTimeout(() => {
+                    // Get mock bills data (this would come from your backend in reality)
+                    const mockBills = [
+                        { bill_name: 'Electricity', amount: 89.99, due_date: '2025-03-25', category: 'Utilities' },
+                        { bill_name: 'Rent', amount: 1200.00, due_date: '2025-04-01', category: 'Housing' },
+                        { bill_name: 'Internet', amount: 65.99, due_date: '2025-03-28', category: 'Utilities' },
+                        { bill_name: 'Phone', amount: 85.50, due_date: '2025-03-15', category: 'Utilities' },
+                        { bill_name: 'Netflix', amount: 15.99, due_date: '2025-03-18', category: 'Entertainment' },
+                        { bill_name: 'Spotify', amount: 9.99, due_date: '2025-03-20', category: 'Entertainment' },
+                        { bill_name: 'Car Insurance', amount: 91.99, due_date: '2025-04-12', category: 'Insurance' }
+                    ];
+                    
+                    // Instead of the actual API call, generate mock responses based on the message
+                    let response;
+                    
+                    if (message.toLowerCase().includes('due') || message.toLowerCase().includes('next')) {
+                        // Sort bills by due date and find the next one
+                        const sortedBills = [...mockBills].sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+                        const nextBill = sortedBills.find(bill => new Date(bill.due_date) > new Date());
+                        
+                        if (nextBill) {
+                            response = `Your next bill is **${nextBill.bill_name}** due on ${formatDate(nextBill.due_date)} for $${nextBill.amount.toFixed(2)}.`;
+                        } else {
+                            response = "You don't have any upcoming bills at the moment.";
+                        }
+                    } 
+                    else if (message.toLowerCase().includes('total') || message.toLowerCase().includes('amount') || message.toLowerCase().includes('spend')) {
+                        const totalAmount = mockBills.reduce((sum, bill) => sum + bill.amount, 0);
+                        const categorySums = mockBills.reduce((acc, bill) => {
+                            acc[bill.category] = (acc[bill.category] || 0) + bill.amount;
+                            return acc;
+                        }, {});
+                        
+                        response = `Your total bills amount to **$${totalAmount.toFixed(2)}** across ${mockBills.length} different bills.\n\n`;
+                        response += "Here's a breakdown by category:\n\n";
+                        
+                        Object.entries(categorySums).forEach(([category, sum]) => {
+                            response += `- **${category}**: $${sum.toFixed(2)}\n`;
+                        });
+                    } 
+                    else if (message.toLowerCase().includes('save') || message.toLowerCase().includes('saving') || message.toLowerCase().includes('reduce')) {
+                        response = "Based on your spending patterns, here are some ways you could save money:\n\n";
+                        response += "1. **Bundle services** - You could save approximately $15/month by bundling your internet and streaming services.\n";
+                        response += "2. **Switch providers** - There are cheaper alternatives to<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant - Bill Reminder</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --primary-dark: #3a56d4;
+            --secondary-color: #48bfe3;
+            --light-color: #f8f9fa;
+            --dark-color: #1a1a2e;
+            --success-color: #06d6a0;
+            --warning-color: #ffd166;
+            --danger-color: #ef476f;
+            --card-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            --sidebar-width: 240px;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f4f7fc;
+            transition: all 0.3s;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: var(--sidebar-width);
+            background: var(--dark-color);
+            color: white;
+            padding-top: 20px;
+            z-index: 100;
+            transition: all 0.3s;
+            box-shadow: 3px 0px 10px rgba(0,0,0,0.1);
+        }
+
+        .sidebar .logo-container {
+            padding: 15px 25px;
+            margin-bottom: 25px;
+        }
+
+        .sidebar .logo-container h4 {
+            margin: 0;
+            font-weight: 600;
+            font-size: 1.4rem;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.7);
+            padding: 12px 25px;
+            margin: 3px 0;
+            border-radius: 0 30px 30px 0;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            color: white;
+            background-color: rgba(255,255,255,0.1);
+        }
+
+        .sidebar .nav-link.active {
+            background-color: var(--primary-color);
+        }
+
+        .sidebar .nav-link i {
+            margin-right: 15px;
+            width: 24px;
+            text-align: center;
+        }
+
+        /* Main Content Styles */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 30px;
+            transition: all 0.3s;
+            min-height: 100vh;
+        }
+
+        .page-title {
+            margin-bottom: 30px;
+            color: var(--dark-color);
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            padding-bottom: 15px;
+        }
+
+        .page-title h2 {
+            font-weight: 600;
+            margin-bottom: 0;
+        }
+
+        /* Theme Switch Button */
+        .theme-switch {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--dark-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+
+        .theme-switch:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+
+        /* Dark Mode Styles */
+        .dark-mode {
+            background-color: #121212;
+            color: #f5f5f5;
+        }
+
+        .dark-mode .custom-card,
+        .dark-mode .form-control,
+        .dark-mode .bot-message,
+        .dark-mode .chat-input input {
+            background-color: #1e1e1e;
+            color: #f5f5f5;
+            border-color: #333;
+        }
+
+        .dark-mode .bill-item .bill-name {
+            color: #f5f5f5;
+        }
+
+        .dark-mode .page-title,
+        .dark-mode .custom-form-group label {
+            color: #f5f5f5;
+        }
+
+        .dark-mode .bill-item:hover {
+            background-color: rgba(255,255,255,0.05);
+        }
+
+        .dark-mode .chat-messages {
+            background-color: #121212;
+        }
+
+        .dark-mode .bot-response-table th {
+            background-color: #333;
+            color: #f5f5f5;
+        }
+
+        .dark-mode .bot-response-table tr:nth-child(even) {
+            background-color: #2a2a2a;
+        }
+
+        .dark-mode .theme-switch {
+            background-color: var(--light-color);
+            color: var(--dark-color);
+        }
+
+        .dark-mode .suggestion-pill {
+            background: #333;
+            color: #f5f5f5;
+        }
+
+        .dark-mode .typing-indicator {
+            background-color: #2a2a2a;
+        }
+
+        /* Toast Notification */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .toast {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            padding: 0;
+            margin-bottom: 15px;
+            min-width: 300px;
+            max-width: 400px;
+            overflow: hidden;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast-header {
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .toast-header i {
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+
+        .toast-header strong {
+            flex: 1;
+            font-weight: 600;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            line-height: 1;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .toast-body {
+            padding: 15px;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+
+        .toast-success .toast-header {
+            background-color: rgba(6, 214, 160, 0.1);
+            color: var(--success-color);
+        }
+
+        .toast-error .toast-header {
+            background-color: rgba(239, 71, 111, 0.1);
+            color: var(--danger-color);
+        }
+
+        /* Chatbot styles */
+        .chat-container {
+            border-radius: 15px;
+            box-shadow: var(--card-shadow);
+            height: 70vh;
+            display: flex;
+            flex-direction: column;
+            background-color: white;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .chat-header {
+            padding: 18px 25px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+        }
+
+        .chat-header i {
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            background-color: #f9fafc;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            max-width: 80%;
+            padding: 15px;
+            border-radius: 15px;
+            position: relative;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background-color: var(--primary-color);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .bot-message {
+            align-self: flex-start;
+            background-color: white;
+            color: var(--dark-color);
+            border-bottom-left-radius: 5px;
+        }
+
+        .message-content {
+            word-wrap: break-word;
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            margin-top: 8px;
+            text-align: right;
+        }
+
+        .typing-indicator {
+            display: none;
+            align-self: flex-start;
+            background-color: white;
+            color: #999;
+            padding: 10px 15px;
+            border-radius: 15px;
+            border-bottom-left-radius: 5px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .typing-indicator span {
+            animation: dot 1.3s infinite;
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #999;
+            margin: 0 2px;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes dot {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-5px); }
+        }
+
+        .chat-input {
+            display: flex;
+            padding: 15px 20px;
+            background-color: white;
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .chat-input input {
+            flex: 1;
+            border-radius: 30px;
+            padding: 12px 20px;
+            border: 1px solid #ddd;
+            background-color: #f5f7fb;
+        }
+
+        .chat-input button {
+            margin-left: 10px;
+            border-radius: 50%;
+            width: 46px;
+            height: 46px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 10px rgba(67, 97, 238, 0.2);
+            cursor: pointer;
+        }
+
+        .chat-input button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(67, 97, 238, 0.3);
+        }
+
+        .chat-input button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .bot-welcome {
+            font-style: normal;
+            color: var(--dark-color);
+        }
+
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 15px;
+            gap: 10px;
+            background-color: white;
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .suggestion-pill {
+            background: #f0f2f5;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 15px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .suggestion-pill:hover {
+            background: #e4e6eb;
+            transform: translateY(-2px);
+        }
+
+        .message-content pre {
+            background-color: rgba(0,0,0,0.05);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        .bot-message .message-content ul {
+            padding-left: 20px;
+        }
+
+        .bot-message .message-content p {
+            margin-bottom: 10px;
+        }
+
+        .bot-message .message-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .bot-message .message-content table th,
+        .bot-message .message-content table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .bot-message .message-content table th {
+            background-color: #f2f2f2;
+        }
+
+        /* Chat history section */
+        .chat-history-section {
+            margin-bottom: 30px;
+        }
+
+        .chat-history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .chat-history-header h5 {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .chat-history-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .chat-history-item {
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background-color: #f5f7fb;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .chat-history-item:hover {
+            background-color: #e9ecf1;
+            transform: translateX(5px);
+        }
+
+        .chat-history-item p {
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .dark-mode .chat-history-item {
+            background-color: #2a2a2a;
+        }
+
+        .dark-mode .chat-history-item:hover {
+            background-color: #333;
+        }
+
+        .clear-chat-button {
+            background: none;
+            border: none;
+            color: var(--danger-color);
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .clear-chat-button:hover {
+            text-decoration: underline;
+        }
+
+        /* Media Queries for Responsive Design */
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 70px;
+                overflow: hidden;
+            }
+            
+            .sidebar .logo-container h4,
+            .sidebar .nav-link span {
+                display: none;
+            }
+            
+            .sidebar .nav-link {
+                padding: 15px 0;
+                justify-content: center;
+            }
+            
+            .sidebar .nav-link i {
+                margin-right: 0;
+                font-size: 1.2rem;
+            }
+            
+            .main-content {
+                margin-left: 70px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 20px;
+            }
+            
+            .chat-container {
+                height: 60vh;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .sidebar {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                top: auto;
+                width: 100%;
+                height: 60px;
+                display: flex;
+                flex-direction: row;
+                padding: 0;
+                z-index: 1000;
+            }
+            
+            .sidebar .logo-container {
+                display: none;
+            }
+            
+            .sidebar .nav {
+                display: flex;
+                flex-direction: row;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            
+            .sidebar .nav-item {
+                flex: 1;
+            }
+            
+            .sidebar .nav-link {
+                padding: 10px 0;
+                text-align: center;
+                border-radius: 0;
+                height: 60px;
+                justify-content: center;
+                align-items: center;
+                flex-direction: column;
+            }
+            
+            .sidebar .nav-link i {
+                margin: 0 0 5px 0;
+                font-size: 1.1rem;
+            }
+            
+            .sidebar .nav-link span {
+                display: block;
+                font-size: 0.7rem;
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding-bottom: 80px;
+            }
+            
+            .page-title h2 {
+                font-size: 1.5rem;
+            }
+            
+            .chat-container {
+                height: 70vh;
+            }
+            
+            .suggestions {
+                padding: 10px;
+            }
+            
+            .suggestion-pill {
+                font-size: 0.8rem;
+                padding: 6px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Theme Switch Button -->
+    <div class="theme-switch" id="themeSwitch">
+        <i class="fas fa-moon"></i>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar">
+        <div class="logo-container">
+            <h4><i class="fas fa-receipt mr-2"></i> BillTracker</h4>
+        </div>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a href="index.html" class="nav-link">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="add-bill.html" class="nav-link">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>Add Bill</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="bill-history.html" class="nav-link">
+                    <i class="fas fa-history"></i>
+                    <span>Bill History</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="ai-chat.html" class="nav-link active">
+                    <i class="fas fa-robot"></i>
+                    <span>AI Assistant</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="reminders.html" class="nav-link">
+                    <i class="fas fa-bell"></i>
+                    <span>Reminders</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="insights.html" class="nav-link">
+                    <i class="fas fa-lightbulb"></i>
+                    <span>Insights</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <div class="page-title">
+            <h2><i class="fas fa-robot mr-2"></i> AI Bill Assistant</h2>
+            <p class="text-muted">Ask questions about your bills, get insights, and find ways to save money</p>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-4">
+                <!-- Chat History Section -->
+                <div class="chat-history-section">
+                    <div class="chat-history-header">
+                        <h5>Recent Conversations</h5>
+                        <button class="clear-chat-button" id="clearChatHistory">
+                            <i class="fas fa-trash-alt"></i> Clear All
+                        </button>
+                    </div>
+                    <ul class="chat-history-list" id="chatHistoryList">
+                        <!-- Will be populated dynamically -->
+                        <li class="text-center text-muted py-3">
+                            <small>No recent conversations</small>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- AI Capabilities Card -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-lightbulb mr-2"></i> Bill Assistant Can Help With</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="mb-0">
+                            <li>Track upcoming bills and due dates</li>
+                            <li>Analyze your spending patterns</li>
+                            <li>Find ways to reduce recurring costs</li>
+                            <li>Suggest free alternatives to paid services</li>
+                            <li>Calculate total monthly expenses</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-8">
+                <!-- Chat Container -->
+                <div class="chat-container">
+                    <div class="chat-header">
+                        <i class="fas fa-robot"></i> Bill Assistant
+                    </div>
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message bot-message">
+                            <div class="message-content">
+                                <strong>Hello!</strong> I'm your Bill Assistant. I can help you with:
+                                <ul>
+                                    <li>Finding upcoming bills</li>
+                                    <li>Analyzing your spending</li>
+                                    <li>Suggesting ways to save money</li>
+                                    <li>Answering questions about your bills</li>
+                                </ul>
+                                How can I help you today?
+                            </div>
+                            <div class="message-time">
+                                Just now
+                            </div>
+                        </div>
+                    </div>
+                    <div class="typing-indicator" id="typingIndicator">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <div class="suggestions">
+                        <button class="suggestion-pill" data-query="When is my next bill due?">When is my next bill due?</button>
+                        <button class="suggestion-pill" data-query="How much do I spend on subscriptions?">How much do I spend on subscriptions?</button>
+                        <button class="suggestion-pill" data-query="Where can I save money?">Where can I save money?</button>
+                        <button class="suggestion-pill" data-query="Show my bills by category">Show my bills by category</button>
+                    </div>
+                    <form id="chatForm" class="chat-input">
+                        <input type="text" id="messageInput" placeholder="Ask about your bills..." class="form-control">
+                        <button type="submit" id="sendButton">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Theme toggling
+            const themeSwitch = document.getElementById('themeSwitch');
+            if (themeSwitch) {
+                themeSwitch.addEventListener('click', function() {
+                    document.body.classList.toggle('dark-mode');
+                    const isDarkMode = document.body.classList.contains('dark-mode');
+                    localStorage.setItem('darkMode', isDarkMode);
+                    
+                    const icon = themeSwitch.querySelector('i');
+                    if (isDarkMode) {
+                        icon.className = 'fas fa-sun';
+                    } else {
+                        icon.className = 'fas fa-moon';
+                    }
+                });
+
+                // Restore dark mode preference
+                if (localStorage.getItem('darkMode') === 'true') {
+                    document.body.classList.add('dark-mode');
+                    const icon = themeSwitch.querySelector('i');
+                    if (icon) {
+                        icon.className = 'fas fa-sun';
+                    }
+                }
+            }
+
+            // Chat functionality
+            const chatForm = document.getElementById('chatForm');
+            const messageInput = document.getElementById('messageInput');
+            const sendButton = document.getElementById('sendButton');
+            const chatMessages = document.getElementById('chatMessages');
+            const typingIndicator = document.getElementById('typingIndicator');
+            const suggestionPills = document.querySelectorAll('.suggestion-pill');
+            const chatHistoryList = document.getElementById('chatHistoryList');
+            const clearChatHistoryBtn = document.getElementById('clearChatHistory');
+            
+            // Initialize chat history from localStorage
+            let chatHistory = JSON.parse(localStorage.getItem('chatHistory')) || [];
+            updateChatHistoryUI();
+            
+            // Handle suggestion pills
+            suggestionPills.forEach(pill => {
+                pill.addEventListener('click', function() {
+                    const query = this.getAttribute('data-query');
+                    messageInput.value = query;
+                    sendMessage();
+                });
+            });
+            
+            // Handle send button click and enter key
+            chatForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                sendMessage();
+            });
+            
+            // Clear chat history
+            clearChatHistoryBtn.addEventListener('click', function() {
+                if (confirm('Are you sure you want to clear all chat history?')) {
+                    chatHistory = [];
+                    localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+                    updateChatHistoryUI();
+                    showToast('Success', 'Chat history cleared');
+                }
+            });
+            
+            function sendMessage() {
+                const message = messageInput.value.trim();
+                if (!message) return;
+                
+                // Disable send button during processing
+                sendButton.disabled = true;
+                
+                // Add user message to chat
+                addMessage('user', message);
+                
+                // Clear input
+                messageInput.value = '';
+                
+                // Store in chat history
+                saveToHistory(message);
+                
+                // Show typing indicator
+                typingIndicator.style.display = 'flex';
+                
+                // In a real implementation, this would call the Gemini API
+                // For this demo, we'll simulate a server call with setTimeout
+                setTimeout(() => {
+                    // Get mock bills data (this would come from your backend in reality)
+                    const mockBills = [
+                        { bill_name: 'Electricity', amount: 89.99, due_date: '2025-03-25', category: 'Utilities' },
+                        { bill_name: 'Rent', amount: 1200.00, due_date: '2025-04-01', category: 'Housing' },
+                        { bill_name: 'Internet', amount: 65.99, due_date: '2025-03-28', category: 'Utilities' },
+                        { bill_name: 'Phone', amount: 85.50, due_date: '2025-03-15', category: 'Utilities' },
+                        { bill_name: 'Netflix', amount: 15.99, due_date: '2025-03-18', category: 'Entertainment' },
+                        { bill_name: 'Spotify', amount: 9.99, due_date: '2025-03-20', category: 'Entertainment' },
+                        { bill_name: 'Car Insurance', amount: 91.99, due_date: '2025-04-12', category: 'Insurance' }
+                    ];
+                    
+                    // Instead of the actual API call, generate mock responses based on the message
+                    let response;
+                    
+                    if (message.toLowerCase().includes('due') || message.toLowerCase().includes('next')) {
+                        // Sort bills by due date and find the next one
+                        const sortedBills = [...mockBills].sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+                        const nextBill = sortedBills.find(bill => new Date(bill.due_date) > new Date());
+                        
+                        if (nextBill) {
+                            response = `Your next bill is **${nextBill.bill_name}** due on ${formatDate(nextBill.due_date)} for $${nextBill.amount.toFixed(2)}.`;
+                        } else {
+                            response = "You don't have any upcoming bills at the moment.";
+                        }
+                    } 
+                    else if (message.toLowerCase().includes('total') || message.toLowerCase().includes('amount') || message.toLowerCase().includes('spend')) {
+                        const totalAmount = mockBills.reduce((sum, bill) => sum + bill.amount, 0);
+                        const categorySums = mockBills.reduce((acc, bill) => {
+                            acc[bill.category] = (acc[bill.category] || 0) + bill.amount;
+                            return acc;
+                        }, {});
+                        
+                        response = `Your total bills amount to **$${totalAmount.toFixed(2)}** across ${mockBills.length} different bills.\n\n`;
+                        response += "Here's a breakdown by category:\n\n";
+                        
+                        Object.entries(categorySums).forEach(([category, sum]) => {
+                            response += `- **${category}**: $${sum.toFixed(2)}\n`;
+                        });
+                    } 
+                    else if (message.toLowerCase().includes('save') || message.toLowerCase().includes('saving') || message.toLowerCase().includes('reduce')) {
+                        response = "Based on your spending patterns, here are some ways you could save money:\n\n";
+                        response += "1. **Bundle services** - You could save approximately $15/month by bundling your internet and streaming services.\n";
+                        response += "2. **Switch providers** - There are cheaper alternatives to
