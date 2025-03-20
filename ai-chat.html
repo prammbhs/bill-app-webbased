@@ -89,13 +89,15 @@
             padding: 30px;
             transition: all 0.3s;
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         .page-title {
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             color: var(--dark-color);
             border-bottom: 1px solid rgba(0,0,0,0.1);
-            padding-bottom: 15px;
+            padding-bottom: 10px;
         }
 
         .page-title h2 {
@@ -111,7 +113,8 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            height: 70vh;
+            height: calc(100vh - 140px);
+            margin-bottom: 0;
         }
 
         .chat-header {
@@ -132,7 +135,7 @@
         .chat-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
+            padding: 25px;
             display: flex;
             flex-direction: column;
         }
@@ -434,6 +437,15 @@
             .message {
                 max-width: 90%;
             }
+            
+            .chat-container {
+                height: calc(100vh - 180px);
+            }
+            
+            .main-content {
+                padding: 15px;
+                padding-bottom: 80px;
+            }
         }
     </style>
     <script>
@@ -452,6 +464,126 @@
             let hasAskedAboutDue = false;
             let hasAskedAboutCategories = false;
             let hasAskedAboutSavings = false;
+            
+            // Add conversation history tracking
+            let conversationHistory = [];
+            const MAX_HISTORY_LENGTH = 10; // Keep last 10 messages for context
+            
+            // Function to add to conversation history
+            function addToHistory(role, message) {
+                conversationHistory.push({
+                    role: role, // 'user' or 'assistant'
+                    message: message
+                });
+                
+                // Keep history at a reasonable length
+                if (conversationHistory.length > MAX_HISTORY_LENGTH) {
+                    conversationHistory.shift(); // Remove oldest message
+                }
+            }
+            
+            // Get formatted history for sending to the AI
+            function getFormattedHistory() {
+                return conversationHistory.map(item => 
+                    `${item.role}: ${item.message}`
+                ).join('\n\n');
+            }
+            
+            // Move handleAction inside this scope so it can access addMessageToChat
+            function handleAction(actionType, actionDetailsJson, originalResponse) {
+                try {
+                    // Parse the JSON details
+                    const actionDetails = JSON.parse(actionDetailsJson);
+                    
+                    // Format a user-friendly message based on the action
+                    let userMessage = "";
+                    let executeAction = false;
+                    
+                    if (actionType === "add_bill") {
+                        userMessage = `Would you like me to add ${actionDetails.bill_name} for $${actionDetails.amount} due on ${actionDetails.due_date}?`;
+                        executeAction = confirm(userMessage);
+                        
+                        if (executeAction) {
+                            // First get AI to categorize the bill
+                            fetch('/classify-bill', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ bill_name: actionDetails.bill_name })
+                            })
+                            .then(response => response.json())
+                            .then(categoryData => {
+                                // Now add the bill with the categorization
+                                const billData = {
+                                    ...actionDetails, 
+                                    category: categoryData.category || 'Other'
+                                };
+                                
+                                // Call API to add bill with category
+                                return fetch('/bills', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify(billData)
+                                });
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                addMessageToChat('bot', `✅ I've added ${actionDetails.bill_name} to your bills in the ${data.category || 'Other'} category.`);
+                            })
+                            .catch(error => {
+                                addMessageToChat('bot', `❌ Sorry, I couldn't add the bill. Error: ${error.message}`);
+                            });
+                        } else {
+                            addMessageToChat('bot', "I understand. I won't add this bill to your account.");
+                        }
+                    } 
+                    else if (actionType === "remove_bill") {
+                        userMessage = `Would you like me to remove ${actionDetails.bill_name} from your bills?`;
+                        executeAction = confirm(userMessage);
+                        
+                        if (executeAction) {
+                            // Call API to remove bill
+                            fetch(`/bills/by-name`, {
+                                method: 'DELETE',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ bill_name: actionDetails.bill_name })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                addMessageToChat('bot', `✅ I've removed ${actionDetails.bill_name} from your bills.`);
+                            })
+                            .catch(error => {
+                                addMessageToChat('bot', `❌ Sorry, I couldn't remove the bill. Error: ${error.message}`);
+                            });
+                        } else {
+                            addMessageToChat('bot', "I understand. I won't remove this bill.");
+                        }
+                    }
+                    else if (actionType === "set_reminder") {
+                        userMessage = `Would you like me to set a reminder for ${actionDetails.bill_name} on ${actionDetails.reminder_date}?`;
+                        executeAction = confirm(userMessage);
+                        
+                        if (executeAction) {
+                            // Call API to set reminder
+                            addMessageToChat('bot', `✅ I've set a reminder for ${actionDetails.bill_name} on ${actionDetails.reminder_date}.`);
+                        } else {
+                            addMessageToChat('bot', "I understand. I won't set a reminder.");
+                        }
+                    }
+                    else {
+                        // For other actions or if parsing fails
+                        addMessageToChat('bot', formatMarkdown(originalResponse));
+                    }
+                } catch (error) {
+                    console.error("Error handling action:", error);
+                    addMessageToChat('bot', formatMarkdown(originalResponse));
+                }
+            }
             
             // Modified version of your event listener
             aiForm.addEventListener('submit', function(e) {
@@ -493,19 +625,23 @@
                 // Update chat context
                 updateChatContext(userMessage);
                 
+                // Add user message to history
+                addToHistory('user', userMessage);
+                
                 // Show typing indicator
                 typingIndicator.style.display = 'flex';
                 
                 console.log("Sending query to API:", userMessage);
                 
                 // REAL API CALL
-                fetch('/ai-query', {  // Use relative URL
+                fetch('/ai-query', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        query: userMessage
+                        query: userMessage,
+                        conversation_history: getFormattedHistory() // Add conversation history
                     })
                 })
                 .then(response => {
@@ -521,6 +657,9 @@
                     typingIndicator.style.display = 'none';
                     
                     let formattedResponse = data.response;
+                    
+                    // Add AI response to history
+                    addToHistory('assistant', formattedResponse);
                     
                     // Check if the response contains an action
                     if (formattedResponse.includes("ACTION:")) {
@@ -546,14 +685,6 @@
                     typingIndicator.style.display = 'none';
                     addMessageToChat('bot', "I'm sorry, I couldn't connect to the AI service. Please try again later. Error: " + error.message);
                 });
-                
-                // Comment out the mock response code
-                /*
-                setTimeout(() => {
-                    // Simulate API response
-                    // ... mock code here
-                }, 1500);
-                */
             }
             
             // Theme toggling
@@ -617,6 +748,9 @@
                 
                 chatMessages.appendChild(messageDiv);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                // Save all chat messages to localStorage for persistence
+                saveChat();
             }
             
             // Format Markdown in AI responses
@@ -643,75 +777,92 @@
             }
             
             // Add welcome message
-            addMessageToChat('bot', 'Hello! I\'m your Bill Assistant powered by Gemini AI. Ask me anything about your bills, payment schedules, or how to save money.');
-        });
+            // Replace the welcome message with loading the previous chat
+            // addMessageToChat('bot', 'Hello! I\'m your Bill Assistant...');
 
-        // Add a new function to handle actions
-        function handleAction(actionType, actionDetailsJson, originalResponse) {
-            try {
-                // Parse the JSON details
-                const actionDetails = JSON.parse(actionDetailsJson);
+            // Instead, load chat history from localStorage
+            loadChat();
+            
+            // Add functions to save and load chat history
+            function saveChat() {
+                const chatState = {
+                    messages: Array.from(chatMessages.children).map(msg => {
+                        const isUser = msg.classList.contains('user-message');
+                        const content = msg.querySelector('.message-content').innerHTML;
+                        const time = msg.querySelector('.message-time').textContent;
+                        return { sender: isUser ? 'user' : 'bot', content, time };
+                    }),
+                    context: {
+                        hasAskedAboutDue,
+                        hasAskedAboutCategories,
+                        hasAskedAboutSavings
+                    },
+                    history: conversationHistory
+                };
                 
-                // Format a user-friendly message based on the action
-                let userMessage = "";
-                let executeAction = false;
-                
-                if (actionType === "add_bill") {
-                    userMessage = `Would you like me to add ${actionDetails.bill_name} for $${actionDetails.amount} due on ${actionDetails.due_date}?`;
-                    executeAction = confirm(userMessage);
-                    
-                    if (executeAction) {
-                        // Call API to add bill
-                        fetch('/bills', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(actionDetails)
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            addMessageToChat('bot', `✅ I've added ${actionDetails.bill_name} to your bills.`);
-                        })
-                        .catch(error => {
-                            addMessageToChat('bot', `❌ Sorry, I couldn't add the bill. Error: ${error.message}`);
-                        });
-                    } else {
-                        addMessageToChat('bot', "I understand. I won't add this bill to your account.");
-                    }
-                } 
-                else if (actionType === "remove_bill") {
-                    userMessage = `Would you like me to remove ${actionDetails.bill_name} from your bills?`;
-                    executeAction = confirm(userMessage);
-                    
-                    if (executeAction) {
-                        // Call API to remove bill
-                        // You'd need to add a method to find the bill ID first
-                        addMessageToChat('bot', `✅ I've removed ${actionDetails.bill_name} from your bills.`);
-                    } else {
-                        addMessageToChat('bot', "I understand. I won't remove this bill.");
-                    }
-                }
-                else if (actionType === "set_reminder") {
-                    userMessage = `Would you like me to set a reminder for ${actionDetails.bill_name} on ${actionDetails.reminder_date}?`;
-                    executeAction = confirm(userMessage);
-                    
-                    if (executeAction) {
-                        // Call API to set reminder
-                        addMessageToChat('bot', `✅ I've set a reminder for ${actionDetails.bill_name} on ${actionDetails.reminder_date}.`);
-                    } else {
-                        addMessageToChat('bot', "I understand. I won't set a reminder.");
-                    }
-                }
-                else {
-                    // For other actions or if parsing fails
-                    addMessageToChat('bot', formatMarkdown(originalResponse));
-                }
-            } catch (error) {
-                console.error("Error handling action:", error);
-                addMessageToChat('bot', formatMarkdown(originalResponse));
+                localStorage.setItem('billTrackerChat', JSON.stringify(chatState));
             }
-        }
+
+            function loadChat() {
+                const savedChat = localStorage.getItem('billTrackerChat');
+                
+                if (savedChat) {
+                    const chatState = JSON.parse(savedChat);
+                    
+                    // Restore context variables
+                    hasAskedAboutDue = chatState.context.hasAskedAboutDue;
+                    hasAskedAboutCategories = chatState.context.hasAskedAboutCategories;
+                    hasAskedAboutSavings = chatState.context.hasAskedAboutSavings;
+                    
+                    // Restore conversation history
+                    conversationHistory = chatState.history || [];
+                    
+                    // Only restore chat messages if the page was refreshed within a short timeframe
+                    const lastMessageTime = chatState.messages && chatState.messages.length > 0 ? 
+                        new Date(chatState.messages[chatState.messages.length - 1].time) : null;
+                    
+                    if (lastMessageTime && ((new Date()) - lastMessageTime < 1000 * 60 * 30)) { // 30 minutes
+                        // Clear existing welcome message
+                        chatMessages.innerHTML = '';
+                        
+                        // Restore messages
+                        chatState.messages.forEach(msg => {
+                            const messageDiv = document.createElement('div');
+                            messageDiv.className = `message ${msg.sender}-message`;
+                            
+                            const contentDiv = document.createElement('div');
+                            contentDiv.className = 'message-content';
+                            contentDiv.innerHTML = msg.content;
+                            
+                            const timeDiv = document.createElement('div');
+                            timeDiv.className = 'message-time';
+                            timeDiv.textContent = msg.time;
+                            
+                            messageDiv.appendChild(contentDiv);
+                            messageDiv.appendChild(timeDiv);
+                            
+                            chatMessages.appendChild(messageDiv);
+                        });
+                        
+                        // Scroll to bottom of restored chat
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    } else {
+                        // Clear any existing messages first
+                        chatMessages.innerHTML = '';
+                        // Add welcome message for old/expired session
+                        addMessageToChat('bot', 'Hello! I\'m your Bill Assistant powered by Gemini AI. Ask me anything about your bills, payment schedules, or how to save money.');
+                    }
+                } else {
+                    // Clear any existing messages first
+                    chatMessages.innerHTML = '';
+                    // Add welcome message for new session
+                    addMessageToChat('bot', 'Hello! I\'m your Bill Assistant powered by Gemini AI. Ask me anything about your bills, payment schedules, or how to save money.');
+                }
+            }
+            
+            // Load chat history on page load
+            loadChat();
+        });
     </script>
 </head>
 <body>
@@ -772,32 +923,29 @@
             <p class="text-muted">Ask questions about your bills and finances</p>
         </div>
         
-        <div class="row">
-            <div class="col-lg-10 mx-auto">
-                <div class="chat-container">
-                    <div class="chat-header">
-                        <i class="fas fa-robot"></i> Bill Assistant
-                    </div>
-                    <div class="chat-messages" id="chatMessages">
-                        <!-- Messages will be added here dynamically -->
-                    </div>
-                    <div class="typing-indicator" id="typingIndicator">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                    <div class="suggestions">
-                        <button class="suggestion-pill">When is my next bill due?</button>
-                        <button class="suggestion-pill">What's my total bill amount?</button>
-                        <button class="suggestion-pill">How can I save money?</button>
-                        <button class="suggestion-pill">Show bills by category</button>
-                    </div>
-                    <form id="aiForm" class="chat-input">
-                        <input type="text" id="aiInput" placeholder="Ask about your bills...">
-                        <button type="submit" id="aiSubmit" title="Send Message"><i class="fas fa-paper-plane"></i></button>
-                    </form>
-                </div>
+        <!-- Remove the row and column classes to allow full width -->
+        <div class="chat-container">
+            <div class="chat-header">
+                <i class="fas fa-robot"></i> Bill Assistant
             </div>
+            <div class="chat-messages" id="chatMessages">
+                <!-- Messages will be added here dynamically -->
+            </div>
+            <div class="typing-indicator" id="typingIndicator">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="suggestions">
+                <button class="suggestion-pill">When is my next bill due?</button>
+                <button class="suggestion-pill">What's my total bill amount?</button>
+                <button class="suggestion-pill">How can I save money?</button>
+                <button class="suggestion-pill">Show bills by category</button>
+            </div>
+            <form id="aiForm" class="chat-input">
+                <input type="text" id="aiInput" placeholder="Ask about your bills...">
+                <button type="submit" id="aiSubmit" title="Send Message"><i class="fas fa-paper-plane"></i></button>
+            </form>
         </div>
     </main>
 </body>

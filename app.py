@@ -69,6 +69,21 @@ def delete_bill():
     db.remove(Query().id == int(bill_id))
     return jsonify({'message': 'Bill deleted'}), 200
 
+# Add this endpoint to delete bill by name
+@app.route('/bills/by-name', methods=['DELETE'])
+def delete_bill_by_name():
+    data = request.json
+    bill_name = data.get('bill_name')
+    if not bill_name:
+        return jsonify({"error": "No bill name provided"}), 400
+        
+    Bill = Query()
+    removed = db.remove(Bill.bill_name == bill_name)
+    if removed:
+        return jsonify({"message": f"Bill '{bill_name}' deleted successfully!"})
+    else:
+        return jsonify({"message": "Bill not found"}), 404
+
 # Send email reminder
 @app.route('/send-reminder', methods=['POST'])
 def send_reminder():
@@ -90,25 +105,50 @@ def get_reminders():
     upcoming_bills = [bill for bill in db.all() if datetime.datetime.strptime(bill['due_date'], '%Y-%m-%d').date() >= today]
     return jsonify(upcoming_bills)
 
-# Get AI-powered insights
+# Enhanced insights endpoint that uses categories
 @app.route('/insights', methods=['GET'])
 def get_insights():
     bills = db.all()
     total_spent = sum(bill['amount'] for bill in bills)
-    frequent_services = [bill['bill_name'] for bill in bills if bill['amount'] > 10]
-
-    # Gemini API Call
+    
+    # Group bills by category
+    categories = {}
+    for bill in bills:
+        category = bill.get('category', 'Other')
+        if category not in categories:
+            categories[category] = 0
+        categories[category] += bill['amount']
+    
+    # Calculate percentage for each category
+    category_percentages = {
+        category: (amount / total_spent) * 100 
+        for category, amount in categories.items()
+    }
+    
+    # Find the highest spending category
+    highest_category = max(categories.items(), key=lambda x: x[1], default=('None', 0))
+    
+    # Gemini API Call for saving suggestions based on highest category
     model = genai.GenerativeModel("gemini-1.5-flash")
-    response = model.generate_content(
-        f"I spend {total_spent} on these services: {frequent_services}. Suggest free alternatives."
-    )
-
-    suggestions = response.text if response.text else "No suggestions available."
+    prompt = f"""
+    The user spends the most on {highest_category[0]} category (${highest_category[1]:.2f}).
+    Suggest 3 practical ways to save money on {highest_category[0]} expenses.
+    Keep each suggestion brief (one sentence) and practical.
+    Format as a bullet point list with 3 items.
+    """
+    
+    response = model.generate_content(prompt)
+    saving_suggestions = response.text if response.text else "No suggestions available."
 
     return jsonify({
         "total_spent": total_spent,
-        "frequent_services": frequent_services,
-        "suggestions": suggestions
+        "category_breakdown": categories,
+        "category_percentages": category_percentages,
+        "highest_spending_category": {
+            "name": highest_category[0],
+            "amount": highest_category[1]
+        },
+        "saving_suggestions": saving_suggestions
     })
 
 # Modified AI query endpoint to better handle service recommendations
@@ -120,6 +160,7 @@ def ai_query():
     try:
         data = request.json
         user_query = data.get('query')
+        conversation_history = data.get('conversation_history', '')
         
         if not user_query:
             return jsonify({"error": "No query provided"}), 400
@@ -156,6 +197,9 @@ def ai_query():
         # Define the system instructions as a preamble
         system_instructions = """
 You are BillTracker AI Assistant that helps users manage their bills and finances.
+You have a memory of the conversation so far, so you can refer to previous messages.
+Maintain context: If the user previously mentioned wanting to delete a bill and then mentions a bill name, understand they want to delete that specific bill.
+
 You can provide information about bills, suggest alternatives, and analyze spending patterns.
 
 For services like WiFi, streaming, etc., you can suggest popular options and their estimated costs based on the provided service data.
@@ -176,11 +220,14 @@ For information queries, respond normally with helpful information.
 For service recommendations, include pricing, features, and alternatives.
 """
 
+        # Add conversation history to the prompt
+        conversation_context = f"\n\nConversation history:\n{conversation_history}\n" if conversation_history else ""
+
         # Simplified prompt format for the Gemini model
         try:
             model = genai.GenerativeModel("gemini-1.5-flash")
             # Send as a single text prompt with all the context
-            prompt = f"{system_instructions}\n\nUser query: {user_query}\n\nHere are the current bills:\n{bill_summary}{service_data}\n\nPlease provide a relevant response."
+            prompt = f"{system_instructions}\n\n{conversation_context}User query: {user_query}\n\nHere are the current bills:\n{bill_summary}{service_data}\n\nPlease provide a relevant response."
             
             response = model.generate_content(prompt)
             ai_response = response.text if response.text else "I'm sorry, I couldn't generate a response."
@@ -202,5 +249,105 @@ For service recommendations, include pricing, features, and alternatives.
 @app.route('/<path:filename>')
 def serve_file(filename):
     return send_from_directory(os.getcwd(), filename)
+
+# Add this to your app.py file
+@app.route('/classify-bill', methods=['POST'])
+def classify_bill():
+    try:
+        data = request.json
+        bill_name = data.get('bill_name')
+        
+        if not bill_name:
+            return jsonify({"error": "No bill name provided"}), 400
+            
+        # Call Gemini API to classify the bill
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        
+        prompt = f"""
+        You are a bill categorization assistant. 
+        Based on the bill name "{bill_name}", classify it into one of these categories:
+        - Utilities (e.g., electricity, water, gas, phone, internet)
+        - Entertainment (e.g., movie tickets, concerts, streaming services for media)
+        - Subscriptions (e.g., recurring software payments, magazines, non-entertainment subscriptions)
+        - Insurance (e.g., health, car, home insurance)
+        - Rent (e.g., housing payments, rent, mortgage)
+        - Transportation (e.g., fuel, car payments, public transit)
+        - Food (e.g., groceries, restaurants, meal services)
+        - Other (for anything that doesn't fit above)
+        
+        Return only the category name without any explanation.
+        """
+        
+        response = model.generate_content(prompt)
+        category = response.text.strip() if response.text else "Other"
+        
+        # Ensure the category matches one of our predefined categories
+        valid_categories = ["Utilities", "Entertainment", "Subscriptions", 
+                           "Insurance", "Rent", "Transportation", "Food", "Other"]
+        
+        if category not in valid_categories:
+            # If Gemini returns something outside our categories, default to "Other"
+            category = "Other"
+            
+        return jsonify({
+            "category": category,
+            "bill_name": bill_name
+        })
+    except Exception as e:
+        print(f"Error in bill classification: {str(e)}")
+        return jsonify({"error": str(e), "category": "Other"}), 500
+
+# Add this to app.py - use this once to categorize all existing bills
+@app.route('/admin/categorize-all-bills', methods=['GET'])
+def categorize_all_bills():
+    try:
+        bills = db.all()
+        categorized_count = 0
+        
+        for bill in bills:
+            # Skip bills that already have a category
+            if 'category' in bill and bill['category']:
+                continue
+                
+            # Call Gemini API to classify the bill
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            
+            prompt = f"""
+            You are a bill categorization assistant. 
+            Based on the bill name "{bill['bill_name']}", classify it into one of these categories:
+            - Utilities (e.g., electricity, water, gas, phone, internet)
+            - Entertainment (e.g., movie tickets, concerts, streaming services for media)
+            - Subscriptions (e.g., recurring software payments, magazines, non-entertainment subscriptions)
+            - Insurance (e.g., health, car, home insurance)
+            - Rent (e.g., housing payments, rent, mortgage)
+            - Transportation (e.g., fuel, car payments, public transit)
+            - Food (e.g., groceries, restaurants, meal services)
+            - Other (for anything that doesn't fit above)
+            
+            Return only the category name without any explanation.
+            """
+            
+            response = model.generate_content(prompt)
+            category = response.text.strip() if response.text else "Other"
+            
+            # Ensure the category matches one of our predefined categories
+            valid_categories = ["Utilities", "Entertainment", "Subscriptions", 
+                               "Insurance", "Rent", "Transportation", "Food", "Other"]
+            
+            if category not in valid_categories:
+                category = "Other"
+                
+            # Update the bill with the category
+            db.update({'category': category}, doc_ids=[bill.doc_id])
+            categorized_count += 1
+            
+        return jsonify({
+            "message": f"Successfully categorized {categorized_count} bills",
+            "bills": db.all()
+        })
+    except Exception as e:
+        print(f"Error categorizing bills: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)

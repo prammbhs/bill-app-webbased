@@ -46,12 +46,231 @@
                 <p class="text-muted">Add a new bill to keep track of your expenses</p>
             </div>
             
-            <!-- Add bill form content... -->
-            <!-- ... -->
+            <div class="row">
+                <div class="col-lg-8 mx-auto">
+                    <div class="custom-card">
+                        <div class="card-header">
+                            <i class="fas fa-plus-circle header-icon"></i>
+                            <h5>Bill Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="addBillForm">
+                                <!-- Bill Name -->
+                                <div class="form-group">
+                                    <label for="billName">
+                                        <i class="fas fa-file-invoice mr-2"></i>Bill Name
+                                    </label>
+                                    <input type="text" class="form-control" id="billName" placeholder="e.g. Netflix, Electricity, Rent" required>
+                                    <small class="form-text text-muted">Enter a descriptive name for the bill</small>
+                                </div>
+                                
+                                <!-- Amount & Category in a row -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="amount">
+                                                <i class="fas fa-dollar-sign mr-2"></i>Amount
+                                            </label>
+                                            <div class="input-group">
+                                                <div class="input-group-prepend">
+                                                    <span class="input-group-text">$</span>
+                                                </div>
+                                                <input type="number" class="form-control" id="amount" placeholder="0.00" step="0.01" min="0" required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="category">
+                                                <i class="fas fa-tag mr-2"></i>Category
+                                            </label>
+                                            <select class="form-control" id="category" required>
+                                                <option value="" disabled selected>Select category</option>
+                                                <option value="Utilities">Utilities</option>
+                                                <option value="Entertainment">Entertainment</option>
+                                                <option value="Subscriptions">Subscriptions</option>
+                                                <option value="Insurance">Insurance</option>
+                                                <option value="Rent">Rent & Housing</option>
+                                                <option value="Transportation">Transportation</option>
+                                                <option value="Food">Food & Dining</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Due Date & Recurrence -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="dueDate">
+                                                <i class="fas fa-calendar-day mr-2"></i>Due Date
+                                            </label>
+                                            <input type="date" class="form-control" id="dueDate" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="recurrence">
+                                                <i class="fas fa-sync mr-2"></i>Recurrence
+                                            </label>
+                                            <select class="form-control" id="recurrence">
+                                                <option value="once">One-time</option>
+                                                <option value="monthly">Monthly</option>
+                                                <option value="quarterly">Quarterly</option>
+                                                <option value="yearly">Yearly</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Reminder Options -->
+                                <div class="form-group">
+                                    <div class="custom-control custom-switch">
+                                        <input type="checkbox" class="custom-control-input" id="enableReminder">
+                                        <label class="custom-control-label" for="enableReminder">
+                                            <i class="fas fa-bell mr-2"></i>Set Reminder
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <!-- Reminder Options (initially hidden) -->
+                                <div id="reminderOptions" style="display: none;">
+                                    <div class="card bg-light mb-3">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label for="reminderDays">Remind me</label>
+                                                        <select class="form-control" id="reminderDays">
+                                                            <option value="1">1 day before</option>
+                                                            <option value="3" selected>3 days before</option>
+                                                            <option value="5">5 days before</option>
+                                                            <option value="7">1 week before</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label for="email">Email for notifications</label>
+                                                        <input type="email" class="form-control" id="email" placeholder="your@email.com">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Additional Notes -->
+                                <div class="form-group">
+                                    <label for="notes">
+                                        <i class="fas fa-sticky-note mr-2"></i>Notes (Optional)
+                                    </label>
+                                    <textarea class="form-control" id="notes" rows="2" placeholder="Add any additional information about this bill"></textarea>
+                                </div>
+                                
+                                <!-- Submit Buttons -->
+                                <div class="d-flex justify-content-between mt-4">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="window.location.href='index.html'">
+                                        <i class="fas fa-arrow-left mr-2"></i>Cancel
+                                    </button>
+                                    <div>
+                                        <button type="button" class="btn btn-outline-primary mr-2" id="saveDraftBtn">
+                                            <i class="fas fa-save mr-2"></i>Save Draft
+                                        </button>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-plus-circle mr-2"></i>Add Bill
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </section>
     </main>
 
     <!-- Your custom JavaScript -->
     <script src="js/scripts.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Toggle reminder options when checkbox is clicked
+            const enableReminder = document.getElementById('enableReminder');
+            const reminderOptions = document.getElementById('reminderOptions');
+            
+            enableReminder.addEventListener('change', function() {
+                reminderOptions.style.display = this.checked ? 'block' : 'none';
+            });
+            
+            // Form submission
+            const addBillForm = document.getElementById('addBillForm');
+            
+            addBillForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Get form values
+                const billData = {
+                    bill_name: document.getElementById('billName').value,
+                    amount: parseFloat(document.getElementById('amount').value),
+                    due_date: document.getElementById('dueDate').value,
+                    category: document.getElementById('category').value,
+                    recurrence: document.getElementById('recurrence').value,
+                    notes: document.getElementById('notes').value
+                };
+                
+                // Add reminder data if enabled
+                if (enableReminder.checked) {
+                    billData.reminder = {
+                        days_before: parseInt(document.getElementById('reminderDays').value),
+                        email: document.getElementById('email').value
+                    };
+                }
+                
+                // Send data to server
+                fetch('/bills', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(billData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        // Show success message
+                        alert('Bill added successfully!');
+                        // Redirect to dashboard
+                        window.location.href = 'index.html';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error adding bill. Please try again.');
+                });
+            });
+            
+            // Save draft functionality
+            document.getElementById('saveDraftBtn').addEventListener('click', function() {
+                const formData = {
+                    bill_name: document.getElementById('billName').value || 'Untitled Bill',
+                    amount: document.getElementById('amount').value || 0,
+                    due_date: document.getElementById('dueDate').value || '',
+                    category: document.getElementById('category').value || 'Other',
+                    notes: document.getElementById('notes').value || ''
+                };
+                
+                // Save to localStorage
+                const drafts = JSON.parse(localStorage.getItem('billDrafts') || '[]');
+                drafts.push({
+                    ...formData,
+                    draft_date: new Date().toISOString()
+                });
+                localStorage.setItem('billDrafts', JSON.stringify(drafts));
+                
+                alert('Draft saved successfully!');
+            });
+        });
+    </script>
 </body>
 </html>

@@ -623,23 +623,152 @@
                 }
             }
 
-            // Initialize chart
-            const categoryChart = document.getElementById('categoryChart');
-            if (categoryChart && typeof Chart !== 'undefined') {
+            // Fetch bills from the server
+            fetchBills();
+            
+            // Function to fetch bills and update the dashboard
+            function fetchBills() {
+                fetch('/bills')
+                    .then(response => response.json())
+                    .then(bills => {
+                        updateDashboardStats(bills);
+                        updateUpcomingBillsList(bills);
+                        updateCategoryChart(bills);
+                    })
+                    .catch(error => {
+                        console.error('Error fetching bills:', error);
+                    });
+            }
+            
+            // Update dashboard stats
+            function updateDashboardStats(bills) {
+                // Calculate total bill amount
+                const totalAmount = bills.reduce((sum, bill) => sum + parseFloat(bill.amount), 0);
+                document.getElementById('totalBillAmount').textContent = `$${totalAmount.toFixed(2)}`;
+                
+                // Calculate other stats as needed
+                // You can implement logic for overdue, upcoming, and paid bills here
+            }
+            
+            // Update upcoming bills list
+            function updateUpcomingBillsList(bills) {
+                const upcomingBillsList = document.getElementById('upcomingBillsList');
+                if (!upcomingBillsList) return;
+                
+                // Clear existing list
+                upcomingBillsList.innerHTML = '';
+                
+                // Sort bills by due date
+                const sortedBills = [...bills].sort((a, b) => 
+                    new Date(a.due_date) - new Date(b.due_date)
+                );
+                
+                // Get current date
+                const today = new Date();
+                
+                // Get only upcoming bills
+                const upcomingBills = sortedBills.filter(bill => 
+                    new Date(bill.due_date) >= today
+                ).slice(0, 5); // Show only the next 5 bills
+                
+                if (upcomingBills.length === 0) {
+                    upcomingBillsList.innerHTML = '<div class="text-center py-4 text-muted">No upcoming bills</div>';
+                    return;
+                }
+                
+                // Add bills to the list
+                upcomingBills.forEach(bill => {
+                    const dueDate = new Date(bill.due_date);
+                    const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+                    
+                    let dueDateClass = '';
+                    if (daysUntilDue < 0) {
+                        dueDateClass = 'text-danger';
+                    } else if (daysUntilDue < 7) {
+                        dueDateClass = 'text-warning';
+                    }
+                    
+                    const formattedDate = dueDate.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                    });
+                    
+                    const category = bill.category || 'Other';
+                    
+                    const li = document.createElement('li');
+                    li.className = 'bill-item';
+                    li.innerHTML = `
+                        <div class="bill-info">
+                            <h5 class="bill-name">
+                                ${bill.bill_name}
+                                <span class="category-tag ${category}">${category}</span>
+                            </h5>
+                            <div class="bill-due">Due: ${formattedDate} <span class="${dueDateClass}">(${daysUntilDue < 0 ? 'Overdue' : `Due in ${daysUntilDue} days`})</span></div>
+                        </div>
+                        <div class="bill-amount">$${parseFloat(bill.amount).toFixed(2)}</div>
+                    `;
+                    
+                    upcomingBillsList.appendChild(li);
+                });
+            }
+            
+            // Update category chart
+            function updateCategoryChart(bills) {
+                const categoryChart = document.getElementById('categoryChart');
+                if (!categoryChart || typeof Chart === 'undefined' || bills.length === 0) return;
+                
+                // Group bills by category
+                const categories = {};
+                
+                bills.forEach(bill => {
+                    // If bill doesn't have a category, set it to "Other"
+                    const category = bill.category || "Other";
+                    
+                    if (!categories[category]) {
+                        categories[category] = 0;
+                    }
+                    
+                    categories[category] += parseFloat(bill.amount);
+                });
+                
+                // Prepare data for chart
+                const categoryLabels = Object.keys(categories);
+                const categoryData = Object.values(categories);
+                
+                // Color palette for categories
+                const colorPalette = [
+                    'rgba(67, 97, 238, 0.7)',    // Primary color
+                    'rgba(239, 71, 111, 0.7)',   // Danger color
+                    'rgba(6, 214, 160, 0.7)',    // Success color
+                    'rgba(255, 209, 102, 0.7)',  // Warning color
+                    'rgba(17, 138, 178, 0.7)',   // Info color
+                    'rgba(155, 89, 182, 0.7)',   // Purple
+                    'rgba(52, 152, 219, 0.7)',   // Blue
+                    'rgba(46, 204, 113, 0.7)'    // Green
+                ];
+                
+                // Fill in colors for each category
+                const backgroundColors = categoryLabels.map((_, index) => 
+                    colorPalette[index % colorPalette.length]
+                );
+                
+                // Create or update chart
                 const ctx = categoryChart.getContext('2d');
-                new Chart(ctx, {
+                
+                // Check if chart already exists and destroy it
+                if (window.categoryChartInstance) {
+                    window.categoryChartInstance.destroy();
+                }
+                
+                // Create new chart
+                window.categoryChartInstance = new Chart(ctx, {
                     type: 'doughnut',
                     data: {
-                        labels: ['Utilities', 'Housing', 'Insurance', 'Entertainment', 'Other'],
+                        labels: categoryLabels,
                         datasets: [{
-                            data: [241.97, 1200.00, 91.99, 35.50, 65.00],
-                            backgroundColor: [
-                                'rgba(67, 97, 238, 0.7)',
-                                'rgba(239, 71, 111, 0.7)',
-                                'rgba(6, 214, 160, 0.7)',
-                                'rgba(255, 209, 102, 0.7)',
-                                'rgba(17, 138, 178, 0.7)'
-                            ]
+                            data: categoryData,
+                            backgroundColor: backgroundColors
                         }]
                     },
                     options: {
@@ -647,12 +776,31 @@
                         maintainAspectRatio: false,
                         plugins: {
                             legend: {
-                                position: 'bottom'
+                                position: 'bottom',
+                                labels: {
+                                    padding: 20,
+                                    usePointStyle: true,
+                                    pointStyle: 'circle'
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.raw || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = Math.round((value / total) * 100);
+                                        return `${label}: $${value.toFixed(2)} (${percentage}%)`;
+                                    }
+                                }
                             }
                         }
                     }
                 });
             }
+            
+            // Set up interval to refresh data every 5 minutes
+            setInterval(fetchBills, 5 * 60 * 1000);
         });
     </script>
 </body>
