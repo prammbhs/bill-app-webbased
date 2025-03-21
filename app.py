@@ -106,7 +106,7 @@ def generate_sample_data():
 app = Flask(__name__)
 
 # Enable CORS for all routes - this is the simplest approach for now
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app, origins=["https://billweb.netlify.app"])
 
 # Let's also add a proper CORS preflight handler
 @app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
