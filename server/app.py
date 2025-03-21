@@ -1,10 +1,10 @@
+import os
 from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
 from tinydb import TinyDB, Query
 from flask_mail import Mail, Message
 import datetime
 import google.generativeai as genai
-import os
-from flask_cors import CORS
 import json
 from dotenv import load_dotenv  # Add this import
 
@@ -17,9 +17,14 @@ if not api_key:
     print("Warning: GEMINI_API_KEY not found in environment variables.")
 genai.configure(api_key=api_key)
 
+# Update db path to use /tmp for persistence on Render
+db_path = '/tmp/bills.json' if os.environ.get('RENDER') else 'bills.json'
+db = TinyDB(db_path)
+
 app = Flask(__name__)
-CORS(app)
-db = TinyDB('bills.json')
+
+# Enable CORS - add your Netlify URL here when you get it
+CORS(app, origins=["https://your-netlify-site.netlify.app", "http://localhost:5000"])
 
 # Configure Flask-Mail with credentials from environment variables
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -628,5 +633,28 @@ def get_category_comparison():
         print(f"Error getting category comparison: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(debug=True)
+# Add a route to serve the JSON database file for backup
+@app.route('/api/download-db', methods=['GET'])
+def download_db():
+    return send_from_directory(os.path.dirname(db_path), os.path.basename(db_path), as_attachment=True)
+
+# Add a route to upload a database backup
+@app.route('/api/upload-db', methods=['POST'])
+def upload_db():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+        
+    try:
+        file.save(db_path)
+        return jsonify({"message": "Database restored successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    # Use environment variable for port
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
