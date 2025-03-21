@@ -66,8 +66,24 @@ def update_bill(bill_id):
 @app.route('/bills', methods=['DELETE'])
 def delete_bill():
     bill_id = request.args.get('id')
-    db.remove(Query().id == int(bill_id))
-    return jsonify({'message': 'Bill deleted'}), 200
+    
+    # Use the Query object
+    Bill = Query()
+    
+    # Check if it's a temporary ID (starts with 'temp-')
+    if bill_id and bill_id.startswith('temp-'):
+        # For temporary IDs, use string comparison
+        db.remove(Bill.id == bill_id)
+    else:
+        try:
+            # For regular numeric IDs, convert to integer
+            numeric_id = int(bill_id)
+            db.remove(Bill.id == numeric_id)
+        except ValueError:
+            # If conversion fails, try as string
+            db.remove(Bill.id == bill_id)
+            
+    return jsonify({'message': 'Bill deleted successfully!'}), 200
 
 # Add this endpoint to delete bill by name
 @app.route('/bills/by-name', methods=['DELETE'])
@@ -87,23 +103,89 @@ def delete_bill_by_name():
 # Send email reminder
 @app.route('/send-reminder', methods=['POST'])
 def send_reminder():
-    data = request.json
-    email = data.get('email')
-    bill_name = data.get('bill_name')
-    due_date = data.get('due_date')
-    
-    msg = Message(f"Reminder: {bill_name} is due soon!", sender='your_email@gmail.com', recipients=[email])
-    msg.body = f"Your bill '{bill_name}' is due on {due_date}. Please make the payment on time."
-    mail.send(msg)
-    
-    return jsonify({"message": "Reminder email sent successfully!"})
+    try:
+        data = request.json
+        email = data.get('email')
+        bill_name = data.get('bill_name')
+        due_date = data.get('due_date')
+        amount = data.get('amount', 'N/A')
+        
+        if not email or not bill_name or not due_date:
+            return jsonify({"error": "Missing required fields"}), 400
+            
+        msg = Message(
+            subject=f"Bill Reminder: {bill_name} is due soon!",
+            sender=os.environ.get('MAIL_USERNAME'),
+            recipients=[email]
+        )
+        
+        msg.body = f"""
+        Hello,
+        
+        This is a reminder that your bill "{bill_name}" is due on {due_date}.
+        Amount: ${amount}
+        
+        Please make sure to pay it on time to avoid late fees.
+        
+        Thank you,
+        BillTracker App
+        """
+        
+        mail.send(msg)
+        return jsonify({"message": "Reminder email sent successfully"})
+    except Exception as e:
+        print(f"Error sending email: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 # Get reminders for upcoming due dates
 @app.route('/reminders', methods=['GET'])
 def get_reminders():
-    today = datetime.date.today()
-    upcoming_bills = [bill for bill in db.all() if datetime.datetime.strptime(bill['due_date'], '%Y-%m-%d').date() >= today]
-    return jsonify(upcoming_bills)
+    try:
+        today = datetime.date.today()
+        upcoming_bills = []
+        
+        for bill in db.all():
+            try:
+                # Check if due_date exists
+                if 'due_date' not in bill:
+                    print(f"Warning: Bill '{bill.get('bill_name', 'Unnamed')}' has no due_date field")
+                    continue
+                
+                # Handle different date formats
+                due_date_str = bill['due_date']
+                due_date = None
+                
+                # Try different date formats
+                date_formats = ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y', '%Y/%m/%d']
+                for fmt in date_formats:
+                    try:
+                        due_date = datetime.datetime.strptime(due_date_str, fmt).date()
+                        break
+                    except ValueError:
+                        continue
+                
+                # If no format worked, try to parse as ISO format
+                if due_date is None:
+                    try:
+                        due_date = datetime.datetime.fromisoformat(due_date_str.replace('Z', '+00:00')).date()
+                    except ValueError:
+                        print(f"Warning: Could not parse due date '{due_date_str}' for bill '{bill.get('bill_name', 'Unnamed')}'")
+                        continue
+                
+                # Add to upcoming bills if due date is today or in the future
+                if due_date >= today:
+                    upcoming_bills.append(bill)
+                    
+            except Exception as e:
+                print(f"Error processing bill: {str(e)}")
+                continue
+                
+        return jsonify(upcoming_bills)
+    except Exception as e:
+        print(f"Error in reminders endpoint: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 # Enhanced insights endpoint that uses categories
 @app.route('/insights', methods=['GET'])
@@ -347,6 +429,203 @@ def categorize_all_bills():
         })
     except Exception as e:
         print(f"Error categorizing bills: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# Add this endpoint to get personalized free alternatives based on user's bills
+@app.route('/free-alternatives', methods=['GET'])
+def get_free_alternatives():
+    try:
+        # Get all bills from the database
+        bills = db.all()
+        
+        # Filter for likely subscription services
+        subscription_keywords = [
+            'spotify', 'netflix', 'disney', 'hulu', 'hbo', 'prime', 'youtube', 'apple music',
+            'office', 'microsoft', 'adobe', 'photoshop', 'dropbox', 'google one', 'icloud',
+            'paramount', 'peacock', 'starz', 'showtime', 'crunchyroll', 'pandora', 'tidal'
+        ]
+        
+        potential_subscriptions = []
+        
+        for bill in bills:
+            bill_name = bill.get('bill_name', '').lower()
+            # Check if bill name contains any subscription keywords
+            if any(keyword in bill_name for keyword in subscription_keywords) or bill.get('category') == 'Subscriptions':
+                potential_subscriptions.append({
+                    'name': bill['bill_name'],
+                    'amount': bill['amount']
+                })
+        
+        # If no subscriptions found, return default alternatives
+        if not potential_subscriptions:
+            return jsonify({
+                "message": "No subscription services detected in your bills",
+                "alternatives": get_default_alternatives()
+            })
+        
+        # Use Gemini to generate free alternatives for the found subscriptions
+        alternatives = []
+        
+        for subscription in potential_subscriptions[:3]:  # Limit to top 3 to avoid too many API calls
+            alt = get_alternative_for_subscription(subscription)
+            if alt:
+                alternatives.append(alt)
+        
+        # If we didn't get any valid alternatives, return defaults
+        if not alternatives:
+            alternatives = get_default_alternatives()
+            
+        return jsonify({
+            "message": f"Found {len(potential_subscriptions)} subscription services in your bills",
+            "alternatives": alternatives
+        })
+    except Exception as e:
+        print(f"Error getting free alternatives: {str(e)}")
+        return jsonify({
+            "error": str(e),
+            "alternatives": get_default_alternatives()
+        }), 500
+
+def get_alternative_for_subscription(subscription):
+    try:
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        prompt = f"""
+        The user is paying ${subscription['amount']} for {subscription['name']}.
+        Suggest a completely free alternative to {subscription['name']}.
+        Format your response in JSON strictly following this structure:
+        {{
+            "paid_service": "Original service name",
+            "paid_amount": $amount_per_month,
+            "free_alternative": "Name of free alternative",
+            "savings": $yearly_savings,
+            "logo_hint": "Icon name suggestion for the alternative (e.g., youtube, tv, film, play, file-word, etc.)",
+            "free_logo_hint": "Icon name suggestion for the free service"
+        }}
+        ONLY return the JSON, no other text.
+        """
+        
+        response = model.generate_content(prompt)
+        response_text = response.text
+        
+        # Clean up response to ensure it's valid JSON
+        response_text = response_text.strip()
+        if response_text.startswith('```json'):
+            response_text = response_text[7:]
+        if response_text.endswith('```'):
+            response_text = response_text[:-3]
+        response_text = response_text.strip()
+        
+        # Parse the JSON response
+        alternative = json.loads(response_text)
+        return alternative
+    except Exception as e:
+        print(f"Error generating alternative for {subscription['name']}: {str(e)}")
+        return None
+
+def get_default_alternatives():
+    return [
+        {
+            "paid_service": "Spotify Premium",
+            "paid_amount": 9.99,
+            "free_alternative": "YouTube Music",
+            "savings": 120,
+            "logo_hint": "spotify",
+            "free_logo_hint": "youtube"
+        },
+        {
+            "paid_service": "Netflix",
+            "paid_amount": 15.49,
+            "free_alternative": "Tubi TV",
+            "savings": 186,
+            "logo_hint": "film",
+            "free_logo_hint": "tv"
+        },
+        {
+            "paid_service": "Microsoft 365",
+            "paid_amount": 6.99,
+            "free_alternative": "LibreOffice",
+            "savings": 84,
+            "logo_hint": "file-word",
+            "free_logo_hint": "file-alt"
+        }
+    ]
+
+# Add endpoint to get average spending percentages from all users
+@app.route('/average-spending', methods=['GET'])
+def get_average_spending():
+    try:
+        # Get all bills from the database
+        bills = db.all()
+        
+        if not bills:
+            return jsonify({})
+            
+        # Calculate total amount spent
+        total_spent = sum(bill.get('amount', 0) for bill in bills)
+        
+        if total_spent == 0:
+            return jsonify({})
+            
+        # Group bills by category
+        categories = {}
+        for bill in bills:
+            category = bill.get('category', 'Other')
+            if category not in categories:
+                categories[category] = 0
+            categories[category] += bill.get('amount', 0)
+        
+        # Calculate percentage for each category
+        category_percentages = {
+            category: (amount / total_spent) * 100 
+            for category, amount in categories.items()
+        }
+        
+        return jsonify(category_percentages)
+    except Exception as e:
+        print(f"Error getting average spending: {str(e)}")
+        return jsonify({}), 500
+
+@app.route('/category-comparison', methods=['GET'])
+def get_category_comparison():
+    try:
+        # Get all bills from the database
+        all_bills = db.all()
+        
+        # Group by category and calculate total spending per category
+        category_totals = {}
+        total_spending = 0
+        
+        for bill in all_bills:
+            category = bill.get('category', 'Other')
+            amount = float(bill.get('amount', 0))
+            
+            if category not in category_totals:
+                category_totals[category] = 0
+            
+            category_totals[category] += amount
+            total_spending += amount
+        
+        # Calculate percentages
+        category_percentages = {}
+        
+        for category, amount in category_totals.items():
+            if total_spending > 0:
+                category_percentages[category] = round((amount / total_spending) * 100, 1)
+            else:
+                category_percentages[category] = 0
+        
+        # Make sure all standard categories have values (even if zero)
+        standard_categories = ["Utilities", "Entertainment", "Subscriptions", 
+                              "Insurance", "Rent", "Transportation", "Food", "Other"]
+        
+        for category in standard_categories:
+            if category not in category_percentages:
+                category_percentages[category] = 0
+                
+        return jsonify(category_percentages)
+    
+    except Exception as e:
+        print(f"Error getting category comparison: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':

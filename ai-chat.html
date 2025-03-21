@@ -540,11 +540,15 @@
                             addMessageToChat('bot', "I understand. I won't add this bill to your account.");
                         }
                     } 
+                    // Enhance the remove_bill action handling for better error reporting
                     else if (actionType === "remove_bill") {
                         userMessage = `Would you like me to remove ${actionDetails.bill_name} from your bills?`;
                         executeAction = confirm(userMessage);
                         
                         if (executeAction) {
+                            // Show a pending message
+                            addMessageToChat('bot', `Working on removing "${actionDetails.bill_name}"...`);
+                            
                             // Call API to remove bill
                             fetch(`/bills/by-name`, {
                                 method: 'DELETE',
@@ -553,11 +557,33 @@
                                 },
                                 body: JSON.stringify({ bill_name: actionDetails.bill_name })
                             })
-                            .then(response => response.json())
+                            .then(response => {
+                                console.log(`Delete response status: ${response.status}`);
+                                // Handle HTTP errors first
+                                if (!response.ok) {
+                                    if (response.status === 404) {
+                                        throw new Error(`Bill "${actionDetails.bill_name}" not found.`);
+                                    } else {
+                                        throw new Error(`Server returned status ${response.status}: ${response.statusText}`);
+                                    }
+                                }
+                                return response.json();
+                            })
                             .then(data => {
-                                addMessageToChat('bot', `✅ I've removed ${actionDetails.bill_name} from your bills.`);
+                                console.log("Delete response data:", data);
+                                if (data.success === false) {
+                                    throw new Error(data.message || "Unknown error");
+                                }
+                                addMessageToChat('bot', `✅ I've successfully removed "${actionDetails.bill_name}" from your bills.`);
+                                
+                                // Create a refresh notification to tell the user they might need to reload other pages
+                                const refreshNote = document.createElement('div');
+                                refreshNote.className = 'system-message';
+                                refreshNote.innerHTML = '<small><i>You may need to refresh the Bill History page to see this change.</i></small>';
+                                chatMessages.appendChild(refreshNote);
                             })
                             .catch(error => {
+                                console.error("Error removing bill:", error);
                                 addMessageToChat('bot', `❌ Sorry, I couldn't remove the bill. Error: ${error.message}`);
                             });
                         } else {
