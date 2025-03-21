@@ -35,7 +35,7 @@ db = TinyDB(db_path)
 app = Flask(__name__)
 
 # Enable CORS - add your Netlify URL here when you get it
-CORS(app, origins=["https://your-netlify-site.netlify.app", "http://localhost:5000"])
+CORS(app, origins=["https://billweb.netlify.app/", "http://localhost:5000"])
 
 # Configure Flask-Mail with credentials from environment variables
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
