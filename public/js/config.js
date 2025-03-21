@@ -5,7 +5,7 @@ const config = {
         // Use production URL in production, localhost in development
         return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? 'http://localhost:5000'
-            : 'https://your-render-app-url.onrender.com';  // You'll update this after deploying backend
+            : 'https://billtracker-backend.onrender.com';  // Update with your actual Render URL
     }
 };
 
