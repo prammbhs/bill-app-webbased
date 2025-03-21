@@ -48,7 +48,18 @@ mail = Mail(app)
 # Serve the HTML file
 @app.route('/')
 def serve_index():
-    return send_from_directory(os.getcwd(), 'index.html')
+    # For Render deployment, return a simple JSON response
+    return jsonify({
+        "status": "online",
+        "message": "BillTracker API is running",
+        "endpoints": [
+            "/bills", 
+            "/reminders", 
+            "/insights",
+            "/ai-query",
+            "/ping"
+        ]
+    })
 
 # Add a new bill
 @app.route('/bills', methods=['POST'])
