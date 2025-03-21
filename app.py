@@ -102,18 +102,28 @@ def generate_sample_data():
             
         print(f"Generated {len(db.all())} sample bills")
 
+# Create the Flask app
 app = Flask(__name__)
 
-# Enable CORS - add your Netlify URL here when you get it
-CORS(app, origins=["https://billweb.netlify.app", "http://localhost:5000"])
+# Enable CORS for all routes - this is the simplest approach for now
+CORS(app, resources={r"/*": {"origins": "*"}})
 
-# Add this function after your app definition
+# Let's also add a proper CORS preflight handler
+@app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
+@app.route('/<path:path>', methods=['OPTIONS'])
+def handle_options(path):
+    response = app.make_default_options_response()
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
+    return response
+
+# Add this function to manually set CORS headers for all responses
 @app.after_request
 def add_cors_headers(response):
-    if request.headers.get('Origin') in ['https://billweb.netlify.app', 'http://localhost:5000']:
-        response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin'))
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
 
 # Configure Flask-Mail with credentials from environment variables
