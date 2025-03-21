@@ -628,7 +628,7 @@
             
             // Function to fetch bills and update the dashboard
             function fetchBills() {
-                fetch('/bills')
+                fetch(`${getApiBaseUrl()}/bills`)
                     .then(response => response.json())
                     .then(bills => {
                         updateDashboardStats(bills);

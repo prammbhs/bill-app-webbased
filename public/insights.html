@@ -1142,7 +1142,7 @@
                     '<div class="text-center"><div class="spinner-border spinner-border-sm text-primary mr-2" role="status"></div> Updating comparison data...</div>';
                 
                 // Fetch fresh data and update the chart
-                fetch('/insights?period=' + currentPeriod)
+                fetch(`${getApiBaseUrl()}/insights?period=` + currentPeriod)
                     .then(response => {
                         if (!response.ok) {
                             throw new Error('Failed to refresh data');
@@ -1195,7 +1195,7 @@
                 fetchFreeAlternatives();
                 
                 // Call API
-                fetch('/insights?period=' + period)
+                fetch(`${getApiBaseUrl()}/insights?period=` + period)
                     .then(response => {
                         if (!response.ok) {
                             throw new Error('Network response was not ok');
@@ -1266,7 +1266,7 @@
                 `;
                 
                 // Fetch alternatives from API
-                fetch('/free-alternatives')
+                fetch(`${getApiBaseUrl()}/free-alternatives`)
                     .then(response => {
                         if (!response.ok) {
                             throw new Error('Network response was not ok');
@@ -1686,7 +1686,7 @@
                 const userPercentages = Object.values(categoryPercentages);
                 
                 // Fetch actual comparison data from the server
-                fetch('/category-comparison')
+                fetch(`${getApiBaseUrl()}/category-comparison`)
                     .then(response => {
                         if (!response.ok) {
                             throw new Error('Failed to fetch comparison data');

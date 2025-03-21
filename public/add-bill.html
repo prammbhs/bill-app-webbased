@@ -671,7 +671,7 @@
                 }
                 
                 // Send data to server
-                fetch('/bills', {
+                fetch(`${getApiBaseUrl()}/bills`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -779,7 +779,7 @@
             
             // Only proceed with AI categorization if user hasn't selected a category yet
             if (!currentSelection || currentSelection === "") {
-                fetch('/classify-bill', {
+                fetch(`${getApiBaseUrl()}/classify-bill`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

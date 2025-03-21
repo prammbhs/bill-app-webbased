@@ -215,7 +215,7 @@
 
         .bill-table th {
             font-weight: 600;
-            color: var(--dark-color);
+            color: var (--dark-color);
             border-bottom: 2px solid rgba(0,0,0,0.1);
             padding: 12px 15px;
         }
@@ -1089,7 +1089,7 @@
                 
                 // Use setTimeout to prevent UI blocking during complex operations
                 setTimeout(() => {
-                    fetch('/bills')
+                    fetch(`${getApiBaseUrl()}/bills`)
                         .then(response => {
                             if (!response.ok) {
                                 throw new Error(`HTTP error! Status: ${response.status}`);
@@ -1427,7 +1427,7 @@
                         };
                         
                         // Delete existing bill
-                        fetch(`/bills?id=${billId}`, {
+                        fetch(`${getApiBaseUrl()}/bills?id=${billId}`, {
                             method: 'DELETE'
                         })
                         .then(response => {
@@ -1553,7 +1553,7 @@
                     const billId = this.getAttribute('data-id');
                     
                     // Delete bill from server
-                    fetch(`/bills?id=${billId}`, {
+                    fetch(`${getApiBaseUrl()}/bills?id=${billId}`, {
                         method: 'DELETE'
                     })
                     .then(response => {
@@ -1688,7 +1688,7 @@
 
             // Debug function to inspect data loading issues
             window.debugBillsData = function() {
-                fetch('/bills')
+                fetch(`${getApiBaseUrl()}/bills`)
                     .then(response => response.json())
                     .then(data => {
                         console.log('--- DEBUG: BILLS DATA ---');
