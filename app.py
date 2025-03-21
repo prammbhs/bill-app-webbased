@@ -7,6 +7,7 @@ import datetime
 import google.generativeai as genai
 import json
 from dotenv import load_dotenv  # Add this import
+import random
 
 # Load environment variables from .env file
 load_dotenv()  # This loads the variables from .env
@@ -32,10 +33,88 @@ else:
 
 db = TinyDB(db_path)
 
+# Create a function to generate sample data
+def generate_sample_data():
+    """Generate sample bills if database is empty"""
+    if len(db.all()) == 0:
+        print("Database is empty, generating sample data...")
+        
+        # Categories for bills
+        categories = ["Utilities", "Entertainment", "Subscriptions", 
+                     "Insurance", "Rent", "Transportation", "Food", "Other"]
+        
+        # Sample bill names for each category
+        bill_names = {
+            "Utilities": ["Electricity Bill", "Water Bill", "Gas Bill", "Internet Service"],
+            "Entertainment": ["Netflix", "Disney+", "HBO Max", "Movie Tickets"],
+            "Subscriptions": ["Spotify Premium", "Adobe Creative Cloud", "Microsoft 365", "Amazon Prime"],
+            "Insurance": ["Health Insurance", "Car Insurance", "Renters Insurance", "Life Insurance"],
+            "Rent": ["Apartment Rent", "Storage Unit", "Parking Space"],
+            "Transportation": ["Car Payment", "Bus Pass", "Uber/Lyft", "Fuel"],
+            "Food": ["Grocery Store", "DoorDash", "Hello Fresh", "Restaurant Bills"],
+            "Other": ["Gym Membership", "Phone Bill", "Student Loans", "Credit Card"]
+        }
+        
+        # Current date
+        today = datetime.date.today()
+        
+        # Generate 15 random bills
+        for i in range(1, 16):
+            # Choose random category
+            category = random.choice(categories)
+            
+            # Choose random bill name from that category
+            bill_name = random.choice(bill_names[category])
+            
+            # Determine amount based on category
+            if category == "Rent":
+                amount = round(random.uniform(800, 2500), 2)
+            elif category == "Insurance":
+                amount = round(random.uniform(80, 300), 2)
+            elif category == "Subscriptions":
+                amount = round(random.uniform(5, 30), 2)
+            else:
+                amount = round(random.uniform(15, 200), 2)
+                
+            # Generate due date within next 30 days
+            days_offset = random.randint(1, 30)
+            due_date = today + datetime.timedelta(days=days_offset)
+            due_date_str = due_date.strftime('%Y-%m-%d')
+            
+            # 30% chance the bill is already paid
+            paid = random.random() < 0.3
+            
+            # Create bill object
+            bill = {
+                "id": i,
+                "bill_name": bill_name,
+                "amount": amount,
+                "due_date": due_date_str,
+                "category": category,
+                "paid": paid,
+                "status": "paid" if paid else "pending",
+                "notes": f"Sample {category.lower()} bill",
+                "recurring": category in ["Subscriptions", "Utilities", "Rent", "Insurance"]
+            }
+            
+            # Add to database
+            db.insert(bill)
+            
+        print(f"Generated {len(db.all())} sample bills")
+
 app = Flask(__name__)
 
 # Enable CORS - add your Netlify URL here when you get it
-CORS(app, origins=["https://billweb.netlify.app/", "http://localhost:5000"])
+CORS(app, origins=["https://billweb.netlify.app", "http://localhost:5000"])
+
+# Add this function after your app definition
+@app.after_request
+def add_cors_headers(response):
+    if request.headers.get('Origin') in ['https://billweb.netlify.app', 'http://localhost:5000']:
+        response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin'))
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 # Configure Flask-Mail with credentials from environment variables
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -44,6 +123,9 @@ app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 mail = Mail(app)
+
+# Call function once after database is initialized but before routes are defined
+generate_sample_data()
 
 # Serve the HTML file
 @app.route('/')
