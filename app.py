@@ -17,8 +17,19 @@ if not api_key:
     print("Warning: GEMINI_API_KEY not found in environment variables.")
 genai.configure(api_key=api_key)
 
-# Update db path to use /tmp for persistence on Render
-db_path = os.environ.get('DATABASE_PATH', 'bills.json')
+# Modify this line in your app.py file
+import os
+from tinydb import TinyDB
+
+# Create a directory path that works with Render's free tier
+if os.environ.get('RENDER'):
+    # Use /tmp directory for Render (will be wiped on redeploy but works for free tier)
+    os.makedirs('/tmp/billtracker', exist_ok=True)
+    db_path = '/tmp/billtracker/bills.json'
+else:
+    # Local development path
+    db_path = 'bills.json'
+
 db = TinyDB(db_path)
 
 app = Flask(__name__)
@@ -653,6 +664,10 @@ def upload_db():
         return jsonify({"message": "Database restored successfully"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/ping', methods=['GET'])
+def ping():
+    return jsonify({"status": "ok", "message": "App is running"}), 200
 
 if __name__ == "__main__":
     # Use environment variable for port
