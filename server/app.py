@@ -18,7 +18,7 @@ if not api_key:
 genai.configure(api_key=api_key)
 
 # Update db path to use /tmp for persistence on Render
-db_path = '/tmp/bills.json' if os.environ.get('RENDER') else 'bills.json'
+db_path = os.environ.get('DATABASE_PATH', 'bills.json')
 db = TinyDB(db_path)
 
 app = Flask(__name__)
