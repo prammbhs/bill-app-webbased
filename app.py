@@ -551,123 +551,58 @@ def categorize_all_bills():
         return jsonify({"error": str(e)}), 500
 
 # Add this endpoint to get personalized free alternatives based on user's bills
-@app.route('/free-alternatives', methods=['GET'])
+@app.route('/free-alternatives', methods=['GET', 'OPTIONS'])
 def get_free_alternatives():
-    try:
-        # Get all bills from the database
-        bills = db.all()
+    """
+    Return suggestions for free alternatives to paid services
+    """
+    if request.method == 'OPTIONS':
+        return _build_cors_preflight_response()
         
-        # Filter for likely subscription services
-        subscription_keywords = [
-            'spotify', 'netflix', 'disney', 'hulu', 'hbo', 'prime', 'youtube', 'apple music',
-            'office', 'microsoft', 'adobe', 'photoshop', 'dropbox', 'google one', 'icloud',
-            'paramount', 'peacock', 'starz', 'showtime', 'crunchyroll', 'pandora', 'tidal'
+    try:
+        # In a real implementation, you would analyze the user's bills
+        # and suggest relevant free alternatives based on their subscriptions
+        
+        alternatives = [
+            {
+                "paid_service": "Netflix",
+                "paid_amount": 15.49,
+                "free_alternative": "Tubi TV",
+                "savings": 186,
+                "logo_hint": "film",
+                "free_logo_hint": "tv"
+            },
+            {
+                "paid_service": "Spotify Premium",
+                "paid_amount": 9.99,
+                "free_alternative": "YouTube Music",
+                "savings": 120,
+                "logo_hint": "spotify",
+                "free_logo_hint": "youtube"
+            },
+            {
+                "paid_service": "Microsoft 365",
+                "paid_amount": 6.99,
+                "free_alternative": "LibreOffice",
+                "savings": 84,
+                "logo_hint": "file-word",
+                "free_logo_hint": "file-alt"
+            },
+            {
+                "paid_service": "Disney+",
+                "paid_amount": 7.99,
+                "free_alternative": "Pluto TV",
+                "savings": 96,
+                "logo_hint": "discord",
+                "free_logo_hint": "play"
+            }
         ]
         
-        potential_subscriptions = []
+        return jsonify({"alternatives": alternatives})
         
-        for bill in bills:
-            bill_name = bill.get('bill_name', '').lower()
-            # Check if bill name contains any subscription keywords
-            if any(keyword in bill_name for keyword in subscription_keywords) or bill.get('category') == 'Subscriptions':
-                potential_subscriptions.append({
-                    'name': bill['bill_name'],
-                    'amount': bill['amount']
-                })
-        
-        # If no subscriptions found, return default alternatives
-        if not potential_subscriptions:
-            return jsonify({
-                "message": "No subscription services detected in your bills",
-                "alternatives": get_default_alternatives()
-            })
-        
-        # Use Gemini to generate free alternatives for the found subscriptions
-        alternatives = []
-        
-        for subscription in potential_subscriptions[:3]:  # Limit to top 3 to avoid too many API calls
-            alt = get_alternative_for_subscription(subscription)
-            if alt:
-                alternatives.append(alt)
-        
-        # If we didn't get any valid alternatives, return defaults
-        if not alternatives:
-            alternatives = get_default_alternatives()
-            
-        return jsonify({
-            "message": f"Found {len(potential_subscriptions)} subscription services in your bills",
-            "alternatives": alternatives
-        })
     except Exception as e:
         print(f"Error getting free alternatives: {str(e)}")
-        return jsonify({
-            "error": str(e),
-            "alternatives": get_default_alternatives()
-        }), 500
-
-def get_alternative_for_subscription(subscription):
-    try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        prompt = f"""
-        The user is paying ${subscription['amount']} for {subscription['name']}.
-        Suggest a completely free alternative to {subscription['name']}.
-        Format your response in JSON strictly following this structure:
-        {{
-            "paid_service": "Original service name",
-            "paid_amount": $amount_per_month,
-            "free_alternative": "Name of free alternative",
-            "savings": $yearly_savings,
-            "logo_hint": "Icon name suggestion for the alternative (e.g., youtube, tv, film, play, file-word, etc.)",
-            "free_logo_hint": "Icon name suggestion for the free service"
-        }}
-        ONLY return the JSON, no other text.
-        """
-        
-        response = model.generate_content(prompt)
-        response_text = response.text
-        
-        # Clean up response to ensure it's valid JSON
-        response_text = response_text.strip()
-        if response_text.startswith('```json'):
-            response_text = response_text[7:]
-        if response_text.endswith('```'):
-            response_text = response_text[:-3]
-        response_text = response_text.strip()
-        
-        # Parse the JSON response
-        alternative = json.loads(response_text)
-        return alternative
-    except Exception as e:
-        print(f"Error generating alternative for {subscription['name']}: {str(e)}")
-        return None
-
-def get_default_alternatives():
-    return [
-        {
-            "paid_service": "Spotify Premium",
-            "paid_amount": 9.99,
-            "free_alternative": "YouTube Music",
-            "savings": 120,
-            "logo_hint": "spotify",
-            "free_logo_hint": "youtube"
-        },
-        {
-            "paid_service": "Netflix",
-            "paid_amount": 15.49,
-            "free_alternative": "Tubi TV",
-            "savings": 186,
-            "logo_hint": "film",
-            "free_logo_hint": "tv"
-        },
-        {
-            "paid_service": "Microsoft 365",
-            "paid_amount": 6.99,
-            "free_alternative": "LibreOffice",
-            "savings": 84,
-            "logo_hint": "file-word",
-            "free_logo_hint": "file-alt"
-        }
-    ]
+        return jsonify({"error": str(e)}), 500
 
 # Add endpoint to get average spending percentages from all users
 @app.route('/average-spending', methods=['GET'])
@@ -704,45 +639,33 @@ def get_average_spending():
         print(f"Error getting average spending: {str(e)}")
         return jsonify({}), 500
 
-@app.route('/category-comparison', methods=['GET'])
+@app.route('/category-comparison', methods=['GET', 'OPTIONS'])
 def get_category_comparison():
+    """
+    Return average spending percentages by category for comparison
+    """
+    if request.method == 'OPTIONS':
+        return _build_cors_preflight_response()
+        
     try:
-        # Get all bills from the database
+        # Get user's actual percentages (could be used in the future)
         all_bills = db.all()
         
-        # Group by category and calculate total spending per category
-        category_totals = {}
-        total_spending = 0
+        # For now, we'll use simulated averages instead of real user data
+        # In a production environment, this would be based on aggregate anonymous data
+        avg_percentages = {
+            'Utilities': 18.5,
+            'Entertainment': 7.2,
+            'Subscriptions': 6.8,
+            'Insurance': 14.3,
+            'Rent': 35.6,
+            'Transportation': 8.9,
+            'Food': 7.1,
+            'Other': 1.6
+        }
         
-        for bill in all_bills:
-            category = bill.get('category', 'Other')
-            amount = float(bill.get('amount', 0))
-            
-            if category not in category_totals:
-                category_totals[category] = 0
-            
-            category_totals[category] += amount
-            total_spending += amount
+        return jsonify(avg_percentages)
         
-        # Calculate percentages
-        category_percentages = {}
-        
-        for category, amount in category_totals.items():
-            if total_spending > 0:
-                category_percentages[category] = round((amount / total_spending) * 100, 1)
-            else:
-                category_percentages[category] = 0
-        
-        # Make sure all standard categories have values (even if zero)
-        standard_categories = ["Utilities", "Entertainment", "Subscriptions", 
-                              "Insurance", "Rent", "Transportation", "Food", "Other"]
-        
-        for category in standard_categories:
-            if category not in category_percentages:
-                category_percentages[category] = 0
-                
-        return jsonify(category_percentages)
-    
     except Exception as e:
         print(f"Error getting category comparison: {str(e)}")
         return jsonify({"error": str(e)}), 500
@@ -771,6 +694,89 @@ def upload_db():
 @app.route('/ping', methods=['GET'])
 def ping():
     return jsonify({"status": "ok", "message": "App is running"}), 200
+
+# Import additional libraries for image processing
+from PIL import Image
+import base64
+import io
+import re
+from datetime import datetime, timedelta
+import random
+
+@app.route('/extract-bill-data', methods=['POST', 'OPTIONS'])
+def extract_bill_data():
+    """
+    Extract data from bill images using OCR and AI processing
+    """
+    if request.method == 'OPTIONS':
+        return _build_cors_preflight_response()
+        
+    try:
+        data = request.json
+        if not data or 'image' not in data:
+            return jsonify({"error": "No image provided"}), 400
+            
+        # Get image data from base64 string
+        image_data = data['image']
+        # Remove the data:image/jpeg;base64, prefix if present
+        if ',' in image_data:
+            image_data = image_data.split(',')[1]
+            
+        # Decode base64 image
+        decoded_image = base64.b64decode(image_data)
+        image = Image.open(io.BytesIO(decoded_image))
+        
+        # For demonstration purposes: Use mock data instead of actual OCR
+        # In a production environment, you would use:
+        # - Google Cloud Vision API
+        # - Azure Computer Vision
+        # - Amazon Textract
+        # - Tesseract OCR 
+        # - Or another OCR/AI service
+        
+        extracted_data = extract_bill_info_mock(image)
+        
+        return jsonify(extracted_data)
+        
+    except Exception as e:
+        print(f"Error extracting bill data: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+def extract_bill_info_mock(image):
+    """
+    Mock function to simulate extracting bill information
+    In a real implementation, this would use OCR and NLP
+    """
+    # Generate mock bill types
+    bill_types = [
+        {"bill_name": "Electric Company", "amount": 89.75, "category": "Utilities"},
+        {"bill_name": "Water Services", "amount": 45.50, "category": "Utilities"},
+        {"bill_name": "Internet Provider", "amount": 59.99, "category": "Utilities"},
+        {"bill_name": "Netflix", "amount": 15.99, "category": "Entertainment"},
+        {"bill_name": "Rent", "amount": 1250.00, "category": "Rent"},
+        {"bill_name": "Car Insurance", "amount": 112.50, "category": "Insurance"},
+        {"bill_name": "Phone Bill", "amount": 75.00, "category": "Utilities"},
+        {"bill_name": "Gym Membership", "amount": 39.99, "category": "Subscriptions"}
+    ]
+    
+    # Pick a random bill type
+    bill_info = random.choice(bill_types)
+    
+    # Generate a due date in the near future (1-30 days from now)
+    days_ahead = random.randint(1, 30)
+    due_date = (datetime.now() + timedelta(days=days_ahead)).strftime('%Y-%m-%d')
+    
+    # Add due date to bill info
+    bill_info["due_date"] = due_date
+    
+    # Add confidence scores (simulating AI confidence in the extraction)
+    bill_info["name_confidence"] = random.uniform(0.75, 0.98)
+    bill_info["amount_confidence"] = random.uniform(0.80, 0.95)
+    bill_info["date_confidence"] = random.uniform(0.70, 0.90)
+    
+    return bill_info
 
 if __name__ == "__main__":
     # Use environment variable for port
