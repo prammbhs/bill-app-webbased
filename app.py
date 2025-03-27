@@ -372,13 +372,22 @@ def ai_query():
         # Prepare a summary of the bills for the AI model
         bill_summary = [{"name": bill['bill_name'], "amount": bill['amount'], "due_date": bill['due_date']} for bill in bills]
         
-        # Check if this is a service recommendation query
-        is_service_query = any(keyword in user_query.lower() for keyword in 
-                               ['wifi', 'internet', 'broadband', 'streaming', 'subscription', 'suggest'])
+        # Check if this is a utility-related query
+        utility_keywords = [
+            'wifi', 'internet', 'broadband', 'electricity', 'power', 'water', 'gas', 'phone', 
+            'utility', 'utilities', 'bill', 'bills', 'payment', 'service', 'subscription',
+            'cable', 'tv', 'streaming', 'energy', 'provider', 'plan', 'discount',
+            'connection', 'mobile', 'cell', 'landline', 'trash', 'garbage', 'sewage',
+            'heat', 'heating', 'cool', 'cooling', 'compare', 'rate', 'price',
+            'expensive', 'cheap', 'save', 'money', 'cost', 'recommendation'
+        ]
+        
+        # More precise check for utility-related query
+        is_utility_query = any(keyword in user_query.lower() for keyword in utility_keywords)
         
         # Add service data if this is a recommendation query
         service_data = ""
-        if is_service_query:
+        if is_utility_query:
             # Sample service data - in a real app, this could come from a database or API
             services = {
                 "wifi": [
@@ -395,15 +404,30 @@ def ai_query():
             
             service_data = f"\n\nHere is information about popular services that might be relevant:\n{json.dumps(services, indent=2)}"
 
-        # Define the system instructions as a preamble
+        # Define the system instructions as a preamble with strict topic restrictions
         system_instructions = """
-You are BillTracker AI Assistant that helps users manage their bills and finances.
-You have a memory of the conversation so far, so you can refer to previous messages.
-Maintain context: If the user previously mentioned wanting to delete a bill and then mentions a bill name, understand they want to delete that specific bill.
+You are BillTracker AI Assistant that ONLY helps users manage their bills, utilities, and household finances.
 
-You can provide information about bills, suggest alternatives, and analyze spending patterns.
+IMPORTANT RESTRICTION: You MUST ONLY respond to queries about household utilities, bills, services, 
+and daily expenses like:
+- Internet/WiFi services and providers
+- Electricity, water, gas bills
+- Phone plans and services
+- Streaming services
+- Insurance payments
+- Rent or mortgage
+- Subscriptions and recurring payments
+- Tips to reduce utility bills
+- Comparing service providers
+- Bill payment options
 
-For services like WiFi, streaming, etc., you can suggest popular options and their estimated costs based on the provided service data.
+For ANY query NOT related to these topics, respond ONLY with:
+"I'm specifically designed to help with bill tracking and utility management. For questions about [topic], 
+please consult a relevant resource or expert. Is there anything about your bills or household utilities 
+I can assist with instead?"
+
+Never provide recommendations, advice, or information on topics unrelated to household bills and utilities,
+even if the user insists.
 
 When the user wants to perform an action like adding a bill, removing a bill, or setting a reminder,
 respond with a special action format:
@@ -416,14 +440,22 @@ DETAILS: {"bill_name": "NAME"}
 
 ACTION: set_reminder
 DETAILS: {"bill_name": "NAME", "reminder_date": "YYYY-MM-DD"}
-
-For information queries, respond normally with helpful information. 
-For service recommendations, include pricing, features, and alternatives.
 """
 
         # Add conversation history to the prompt
         conversation_context = f"\n\nConversation history:\n{conversation_history}\n" if conversation_history else ""
 
+        # Force non-utility topics to get the restricted response
+        if not is_utility_query:
+            # Extract the likely topic from the query
+            topic_words = user_query.lower().split()
+            # Remove common words
+            common_words = ['suggest', 'me', 'a', 'the', 'for', 'about', 'how', 'to', 'what', 'is', 'are', 'do', 'can', 'i', 'you']
+            topic = ' '.join([word for word in topic_words if word not in common_words])
+            
+            restricted_response = f"I'm specifically designed to help with bill tracking and utility management. For questions about {topic}, please consult a relevant resource or expert. Is there anything about your bills or household utilities I can assist with instead?"
+            return jsonify({"response": restricted_response})
+        
         # Simplified prompt format for the Gemini model
         try:
             model = genai.GenerativeModel("gemini-1.5-flash")
