@@ -268,7 +268,9 @@ def send_reminder():
 @app.route('/reminders', methods=['GET'])
 def get_reminders():
     try:
-        today = datetime.date.today()
+        # Fix datetime handling by using explicit imports
+        from datetime import date, datetime as dt
+        today = date.today()  # Fix the method_descriptor error by using date directly
         upcoming_bills = []
         
         for bill in db.all():
@@ -286,7 +288,7 @@ def get_reminders():
                 date_formats = ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y', '%Y/%m/%d']
                 for fmt in date_formats:
                     try:
-                        due_date = datetime.datetime.strptime(due_date_str, fmt).date()
+                        due_date = dt.strptime(due_date_str, fmt).date()
                         break
                     except ValueError:
                         continue
@@ -297,7 +299,7 @@ def get_reminders():
                         # Handle ISO format with or without timezone
                         if 'T' in due_date_str:
                             due_date_str = due_date_str.split('T')[0]
-                        due_date = datetime.datetime.strptime(due_date_str, '%Y-%m-%d').date()
+                        due_date = dt.strptime(due_date_str, '%Y-%m-%d').date()
                     except ValueError:
                         print(f"Warning: Could not parse due date '{due_date_str}' for bill '{bill.get('bill_name', 'Unnamed')}'")
                         # Instead of skipping, use today's date as a fallback
