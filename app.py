@@ -126,6 +126,14 @@ def add_cors_headers(response):
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
 
+# Add this helper function for CORS preflight responses
+def _build_cors_preflight_response():
+    response = app.make_default_options_response()
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
 # Configure Flask-Mail with credentials from environment variables
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
