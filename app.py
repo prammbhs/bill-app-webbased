@@ -274,12 +274,12 @@ def get_reminders():
         for bill in db.all():
             try:
                 # Check if due_date exists
-                if 'due_date' not in bill:
+                if 'due_date' not in bill or not bill['due_date']:
                     print(f"Warning: Bill '{bill.get('bill_name', 'Unnamed')}' has no due_date field")
                     continue
                 
                 # Handle different date formats
-                due_date_str = bill['due_date']
+                due_date_str = str(bill['due_date']).strip()
                 due_date = None
                 
                 # Try different date formats
@@ -294,10 +294,14 @@ def get_reminders():
                 # If no format worked, try to parse as ISO format
                 if due_date is None:
                     try:
-                        due_date = datetime.datetime.fromisoformat(due_date_str.replace('Z', '+00:00')).date()
+                        # Handle ISO format with or without timezone
+                        if 'T' in due_date_str:
+                            due_date_str = due_date_str.split('T')[0]
+                        due_date = datetime.datetime.strptime(due_date_str, '%Y-%m-%d').date()
                     except ValueError:
                         print(f"Warning: Could not parse due date '{due_date_str}' for bill '{bill.get('bill_name', 'Unnamed')}'")
-                        continue
+                        # Instead of skipping, use today's date as a fallback
+                        due_date = today
                 
                 # Add to upcoming bills if due date is today or in the future
                 if due_date >= today:
@@ -305,6 +309,8 @@ def get_reminders():
                     
             except Exception as e:
                 print(f"Error processing bill: {str(e)}")
+                # Add the bill anyway to avoid data loss
+                upcoming_bills.append(bill)
                 continue
                 
         return jsonify(upcoming_bills)
