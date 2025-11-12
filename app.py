@@ -34,6 +34,7 @@ else:
 db = TinyDB(db_path)
 
 # Create a function to generate sample data
+#small change
 def generate_sample_data():
     """Generate sample bills if database is empty"""
     if len(db.all()) == 0:
