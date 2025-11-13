@@ -22,6 +22,7 @@ The **Bill Reminder Web App** is a free-to-use, web-based application designed t
 - **AI Integration**: Natural language queries for bill-related insights.
 
 ## Technology Stack
+-**Mern Stack**
 
 ### Frontend
 - HTML, CSS, JavaScript
