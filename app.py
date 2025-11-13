@@ -11,7 +11,7 @@ import random
 
 # Load environment variables from .env file
 load_dotenv()  # This loads the variables from .env
-
+#improved secusrity
 # Configure Gemini API with key from environment variables
 api_key = os.environ.get("GEMINI_API_KEY")
 if not api_key:
