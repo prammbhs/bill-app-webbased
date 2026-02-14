@@ -347,7 +347,7 @@ def get_insights():
     highest_category = max(categories.items(), key=lambda x: x[1], default=('None', 0))
     
     # Gemini API Call for saving suggestions based on highest category
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-flash-lite-latest")
     prompt = f"""
     The user spends the most on {highest_category[0]} category (${highest_category[1]:.2f}).
     Suggest 3 practical ways to save money on {highest_category[0]} expenses.
@@ -475,7 +475,7 @@ DETAILS: {"bill_name": "NAME", "reminder_date": "YYYY-MM-DD"}
         
         # Simplified prompt format for the Gemini model
         try:
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel("gemini-flash-lite-latest")
             # Send as a single text prompt with all the context
             prompt = f"{system_instructions}\n\n{conversation_context}User query: {user_query}\n\nHere are the current bills:\n{bill_summary}{service_data}\n\nPlease provide a relevant response."
             
@@ -511,7 +511,7 @@ def classify_bill():
             return jsonify({"error": "No bill name provided"}), 400
             
         # Call Gemini API to classify the bill
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-flash-lite-latest")
         
         prompt = f"""
         You are a bill categorization assistant. 
@@ -560,7 +560,7 @@ def categorize_all_bills():
                 continue
                 
             # Call Gemini API to classify the bill
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel("gemini-flash-lite-latest")
             
             prompt = f"""
             You are a bill categorization assistant. 
@@ -828,6 +828,5 @@ def extract_bill_info_mock(image):
     return bill_info
 
 if __name__ == "__main__":
-    # Use environment variable for port
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
